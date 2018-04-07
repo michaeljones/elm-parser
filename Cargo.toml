@@ -1,0 +1,7 @@
+[package]
+name = "elm-parser"
+version = "0.1.0"
+authors = ["Michael Jones <michael@zaptic.com>"]
+
+[dependencies]
+nom = "4.0.0-beta2"
