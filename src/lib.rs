@@ -3,7 +3,7 @@
 extern crate nom;
 
 #[cfg(test)]
-use nom::multispace;
+use nom::{multispace, alpha1};
 
 #[derive(Debug, PartialEq)]
 pub enum ModuleExposing {
@@ -13,7 +13,7 @@ pub enum ModuleExposing {
 
 #[derive(Debug, PartialEq)]
 pub enum Declaration {
-    Function(String),
+    Function(FunctionDetails),
 }
 
 #[derive(Debug, PartialEq)]
@@ -22,6 +22,65 @@ pub struct Module {
     pub exposing: ModuleExposing,
     pub contents: Vec<Declaration>,
 }
+
+#[derive(Debug, PartialEq)]
+pub struct FunctionSignature {
+    pub name: String,
+    pub type_: Type,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct FunctionImplementation {
+    pub name: String,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct FunctionDetails {
+    pub signature: Option<FunctionSignature>,
+    pub implementation: FunctionImplementation,
+}
+
+// Type
+//
+
+#[derive(Debug, PartialEq)]
+pub enum Type {
+    Function(Vec<Type>),
+    Single(String),
+}
+
+#[cfg(test)]
+fn combine(first: Type, mut rest: Vec<Type>) -> Type {
+    if rest.is_empty() {
+        first
+    } else {
+        rest.insert(0, first);
+        Type::Function(rest)
+    }
+}
+
+#[cfg(test)]
+named!(type_<&str, Type>,
+  complete!(
+  dbg_dmp!(
+  do_parse!(
+      first: map!(nom::alpha1, |v| Type::Single(v.to_string())) >>
+      rest: many0!(
+          dbg_dmp!(
+          complete!(
+          do_parse!(
+              tag!(" -> ") >>
+              name: map!(many1!(nom::alpha1), |v| Type::Single(v.join(""))) >>
+              (name)
+          )
+          )
+          )
+      ) >>
+      (combine(first, rest))
+  )
+  )
+  )
+);
 
 #[cfg(test)]
 named!(module_name<&str, &str>,
@@ -45,13 +104,49 @@ named!(module_exposing<&str, ModuleExposing>,
 );
 
 #[cfg(test)]
-named!(function<&str, Declaration>,
+named!(function_signature<&str, FunctionSignature>,
+  do_parse!(
+      name: take_while!(|c| c != ' ') >>
+      multispace >>
+      tag!(":") >>
+      multispace >>
+      type_: type_ >>
+      (FunctionSignature {
+          name: name.to_string(),
+          type_: type_
+      })
+  )
+);
+
+#[cfg(test)]
+named!(function_implementation<&str, FunctionImplementation>,
   do_parse!(
       name: take_while!(|c| c != ' ') >>
       tag!(" =\n") >>
       multispace >>
       tag!("1") >>
-      (Declaration::Function(name.to_string()))
+      (FunctionImplementation { 
+          name: name.to_string()
+      })
+  )
+);
+
+#[cfg(test)]
+named!(function<&str, Declaration>,
+  do_parse!(
+      signature: opt!(
+          do_parse!(
+              signature: function_signature >>
+              char!('\n') >>
+              (signature)
+          )
+      ) >>
+      implementation: function_implementation >>
+      (Declaration::Function(FunctionDetails {
+          signature: signature,
+          implementation: implementation
+      })
+      )
   )
 );
 
@@ -90,7 +185,7 @@ named!(elm_module<&str, Module>,
 );
 
 #[test]
-fn parse_elm() {
+fn parse_elm_file() {
     assert_eq!(
         elm_module(include_str!("../examples/Basic.elm")),
         Ok((
@@ -98,8 +193,64 @@ fn parse_elm() {
             Module {
                 name: "Basic".to_string(),
                 exposing: ModuleExposing::All,
-                contents: vec![Declaration::Function("a".to_string())],
+                contents: vec![
+                    Declaration::Function(FunctionDetails {
+                        signature: Some(FunctionSignature {
+                            name: "a".to_string(),
+                            type_: Type::Single("Int".to_string()),
+                        }),
+                        implementation: FunctionImplementation {
+                            name: "a".to_string(),
+                        },
+                    }),
+                ],
             }
+        ))
+    );
+}
+
+#[test]
+fn parse_elm_module_declaration() {
+    assert_eq!(
+        elm_module("module Basic exposing (..)\n"),
+        Ok((
+            "",
+            Module {
+                name: "Basic".to_string(),
+                exposing: ModuleExposing::All,
+                contents: vec![],
+            }
+        ))
+    );
+}
+
+#[cfg(test)]
+named!(testingalpha<&str, String>,
+    map!(many1!(nom::alpha), |c| c.join(""))
+);
+
+#[test]
+fn parse_elm_type() {
+    // assert_eq!(testingalpha("Int"), Ok(("", "Int")));
+    assert_eq!(
+        type_("Int -> Int"),
+        Ok((
+            "",
+            Type::Function(vec![
+                Type::Single("Int".to_string()),
+                Type::Single("Int".to_string()),
+            ],)
+        ))
+    );
+    assert_eq!(
+        type_("Int -> Int -> String"),
+        Ok((
+            "",
+            Type::Function(vec![
+                Type::Single("Int".to_string()),
+                Type::Single("Int".to_string()),
+                Type::Single("String".to_string()),
+            ],)
         ))
     );
 }
