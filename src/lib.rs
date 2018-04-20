@@ -1,11 +1,8 @@
-#[cfg(test)]
 #[macro_use]
 extern crate nom;
 
-#[cfg(test)]
-use nom::{multispace, alpha1};
+use nom::multispace;
 
-#[cfg(test)]
 use nom::types::CompleteStr;
 
 #[derive(Debug, PartialEq)]
@@ -52,7 +49,6 @@ pub enum Type {
     Single(String),
 }
 
-#[cfg(test)]
 fn combine(first: Type, mut rest: Vec<Type>) -> Type {
     if rest.is_empty() {
         first
@@ -62,7 +58,6 @@ fn combine(first: Type, mut rest: Vec<Type>) -> Type {
     }
 }
 
-#[cfg(test)]
 named!(type_<CompleteStr, Type>,
   complete!(
   do_parse!(
@@ -81,12 +76,10 @@ named!(type_<CompleteStr, Type>,
   )
 );
 
-#[cfg(test)]
 named!(module_name<CompleteStr, &str>,
   map!(take_until_s!(" "), |c| c.0)
 );
 
-#[cfg(test)]
 fn to_module_exposing(string: CompleteStr) -> Result<ModuleExposing, String> {
     if string == CompleteStr("..") {
         return Ok(ModuleExposing::All);
@@ -94,7 +87,6 @@ fn to_module_exposing(string: CompleteStr) -> Result<ModuleExposing, String> {
     return Ok(ModuleExposing::Named(vec![]));
 }
 
-#[cfg(test)]
 named!(module_exposing<CompleteStr, ModuleExposing>,
   map_res!(
       delimited!(char!('('), take!(2), char!(')')),
@@ -102,7 +94,6 @@ named!(module_exposing<CompleteStr, ModuleExposing>,
   )
 );
 
-#[cfg(test)]
 named!(function_signature<CompleteStr, FunctionSignature>,
   do_parse!(
       name: take_while!(|c| c != ' ') >>
@@ -117,7 +108,6 @@ named!(function_signature<CompleteStr, FunctionSignature>,
   )
 );
 
-#[cfg(test)]
 named!(function_implementation<CompleteStr, FunctionImplementation>,
   do_parse!(
       name: take_while!(|c| c != ' ') >>
@@ -130,7 +120,6 @@ named!(function_implementation<CompleteStr, FunctionImplementation>,
   )
 );
 
-#[cfg(test)]
 named!(function<CompleteStr, Declaration>,
   do_parse!(
       signature: opt!(
@@ -149,12 +138,10 @@ named!(function<CompleteStr, Declaration>,
   )
 );
 
-#[cfg(test)]
 fn filter_none(data: Vec<Option<Declaration>>) -> Vec<Declaration> {
     data.into_iter().filter_map(|c| c).collect()
 }
 
-#[cfg(test)]
 named!(contents<CompleteStr, Vec<Declaration>>,
       map!(
           many1!(
@@ -167,8 +154,7 @@ named!(contents<CompleteStr, Vec<Declaration>>,
       )
 );
 
-#[cfg(test)]
-named!(elm_module<CompleteStr, Module>,
+named!(pub elm_module<CompleteStr, Module>,
   do_parse!(
     tag!("module ") >>
     name: module_name >>
