@@ -1,12 +1,15 @@
 #[macro_use]
 extern crate nom;
 
-use nom::multispace;
+use nom::{alphanumeric, multispace};
 
 use nom::types::CompleteStr;
 
 mod types;
+mod expression;
+
 use types::type_;
+use expression::expression;
 
 #[derive(Debug, PartialEq)]
 pub enum ModuleExposing {
@@ -35,6 +38,8 @@ pub struct FunctionSignature {
 #[derive(Debug, PartialEq)]
 pub struct FunctionImplementation {
     pub name: String,
+    pub args: Vec<String>,
+    pub expression: expression::Expression,
 }
 
 #[derive(Debug, PartialEq)]
@@ -78,11 +83,20 @@ named!(function_signature<CompleteStr, FunctionSignature>,
 named!(function_implementation<CompleteStr, FunctionImplementation>,
   do_parse!(
       name: take_while!(|c| c != ' ') >>
+      args: many0!(
+          do_parse!(
+              tag!(" ") >>
+              arg_name: alphanumeric >>
+              (arg_name.0.to_string())
+          )
+      ) >> 
       tag!(" =\n") >>
       multispace >>
-      tag!("1") >>
+      expression: expression >>
       (FunctionImplementation {
-          name: name.0.to_string()
+          name: name.0.to_string(),
+          args: args,
+          expression: expression
       })
   )
 );
@@ -153,6 +167,8 @@ fn parse_elm_file() {
                         }),
                         implementation: FunctionImplementation {
                             name: "a".to_string(),
+                            args: vec![],
+                            expression: expression::Expression::SingleValue("1".to_string()),
                         },
                     }),
                 ],
