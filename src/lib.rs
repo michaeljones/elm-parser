@@ -59,20 +59,16 @@ fn combine(first: Type, mut rest: Vec<Type>) -> Type {
 }
 
 named!(type_<CompleteStr, Type>,
-  complete!(
   do_parse!(
       first: map!(nom::alpha1, |v| Type::Single(v.0.to_string())) >>
       rest: many0!(
-          complete!(
           do_parse!(
               tag!(" -> ") >>
               name: map!(nom::alphanumeric, |v| Type::Single(v.0.to_string())) >>
               (name)
           )
-          )
       ) >>
       (combine(first, rest))
-  )
   )
 );
 
@@ -145,7 +141,7 @@ fn filter_none(data: Vec<Option<Declaration>>) -> Vec<Declaration> {
 named!(contents<CompleteStr, Vec<Declaration>>,
       map!(
           many1!(
-              alt_complete!(
+              alt!(
                   map!(char!('\n'), |_| None) |
                   map!(function, Some)
               )
