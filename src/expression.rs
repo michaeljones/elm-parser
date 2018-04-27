@@ -1,5 +1,5 @@
 use nom;
-// use nom::alphanumeric;
+use nom::multispace;
 use nom::types::CompleteStr;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -40,9 +40,29 @@ named!(inner_expression<CompleteStr, Vec<Expression>>,
   )
 );
 
+named!(operator<CompleteStr, String>,
+    map!(tag!("+"), |c| c.0.to_string())
+);
+
+named!(infix_expression<CompleteStr, Expression>,
+    do_parse!(
+        left: inner_expression >>
+        multispace >>
+        operator: operator >>
+        multispace >>
+        right: expression_choice >>
+        (Expression::InfixCall(InfixDetails {
+            operator: operator,
+            left: Box::new(choose_expression(left)),
+            right: Box::new(choose_expression(right))
+        }))
+    )
+);
+
 named!(expression_choice<CompleteStr, Vec<Expression>>,
   alt!(
-        inner_expression
+        map!(infix_expression, |e| vec![e])
+      | inner_expression
       | do_parse!(
             tag!("(") >>
             subexpression: inner_expression >>
@@ -111,6 +131,22 @@ fn parse_expression() {
                 operator: "+".to_string(),
                 left: Box::new(Expression::SingleValue("1".to_string())),
                 right: Box::new(Expression::SingleValue("2".to_string())),
+            })
+        ))
+    );
+
+    assert_eq!(
+        expression(CompleteStr("1 + 2 + 3")),
+        Ok((
+            CompleteStr(""),
+            Expression::InfixCall(InfixDetails {
+                operator: "+".to_string(),
+                left: Box::new(Expression::SingleValue("1".to_string())),
+                right: Box::new(Expression::InfixCall(InfixDetails {
+                    operator: "+".to_string(),
+                    left: Box::new(Expression::SingleValue("2".to_string())),
+                    right: Box::new(Expression::SingleValue("3".to_string())),
+                })),
             })
         ))
     );
