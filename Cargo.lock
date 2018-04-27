@@ -2,7 +2,7 @@
 name = "elm-parser"
 version = "0.1.0"
 dependencies = [
- "nom 4.0.0-beta2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nom 4.0.0-beta3 (git+https://github.com/geal/nom)",
 ]
 
 [[package]]
@@ -20,8 +20,8 @@ dependencies = [
 
 [[package]]
 name = "nom"
-version = "4.0.0-beta2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+version = "4.0.0-beta3"
+source = "git+https://github.com/geal/nom#3a12f3ed1d2408cb0f6f1774fb1ba1ed0e1a75cf"
 dependencies = [
  "memchr 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -29,4 +29,4 @@ dependencies = [
 [metadata]
 "checksum libc 0.2.40 (registry+https://github.com/rust-lang/crates.io-index)" = "6fd41f331ac7c5b8ac259b8bf82c75c0fb2e469bbf37d2becbba9a6a2221965b"
 "checksum memchr 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "796fba70e76612589ed2ce7f45282f5af869e0fdd7cc6199fa1aa1f1d591ba9d"
-"checksum nom 4.0.0-beta2 (registry+https://github.com/rust-lang/crates.io-index)" = "2b86dd5a5739ba63d5e7e1ec90806c4c13a5fb1ea8b8855e2e3796d821627301"
+"checksum nom 4.0.0-beta3 (git+https://github.com/geal/nom)" = "<none>"

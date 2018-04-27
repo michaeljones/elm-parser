@@ -6,6 +6,7 @@ use nom::types::CompleteStr;
 pub enum Expression {
     SingleValue(String),
     FunctionCall(Vec<Expression>),
+    Dotted(Vec<Expression>),
     InfixCall(InfixDetails),
 }
 
@@ -15,6 +16,33 @@ pub struct InfixDetails {
     left: Box<Expression>,
     right: Box<Expression>,
 }
+
+fn combine_dot(first: Expression, mut rest: Vec<Expression>) -> Expression {
+    if rest.is_empty() {
+        first
+    } else {
+        rest.insert(0, first);
+        Expression::Dotted(rest)
+    }
+}
+
+named!(single_name<CompleteStr, Expression>,
+     map!(nom::alphanumeric, |v| Expression::SingleValue(v.0.to_string()))
+);
+
+named!(dot_expression<CompleteStr, Expression>,
+  do_parse!(
+      first: single_name >>
+      rest: many0!(
+          do_parse!(
+              tag!(".") >>
+              other: single_name >>
+              (other)
+          )
+      ) >>
+      (combine_dot(first, rest))
+  )
+);
 
 fn combine(first: Expression, rest: Vec<Vec<Expression>>) -> Vec<Expression> {
     if rest.is_empty() {
@@ -28,11 +56,11 @@ fn combine(first: Expression, rest: Vec<Vec<Expression>>) -> Vec<Expression> {
 
 named!(inner_expression<CompleteStr, Vec<Expression>>,
   do_parse!(
-      first: map!(nom::alphanumeric, |v| Expression::SingleValue(v.0.to_string())) >>
+      first: dot_expression >>
       rest: many0!(
           do_parse!(
               tag!(" ") >>
-              other: expression_choice >>
+              other: non_infix_expression >>
               (other)
           )
       ) >>
@@ -41,7 +69,7 @@ named!(inner_expression<CompleteStr, Vec<Expression>>,
 );
 
 named!(operator<CompleteStr, String>,
-    map!(tag!("+"), |c| c.0.to_string())
+    map!(is_a!("+-/<|>*$."), |c| c.0.to_string())
 );
 
 named!(infix_expression<CompleteStr, Expression>,
@@ -59,10 +87,9 @@ named!(infix_expression<CompleteStr, Expression>,
     )
 );
 
-named!(expression_choice<CompleteStr, Vec<Expression>>,
+named!(non_infix_expression<CompleteStr, Vec<Expression>>,
   alt!(
-        map!(infix_expression, |e| vec![e])
-      | inner_expression
+        inner_expression
       | do_parse!(
             tag!("(") >>
             subexpression: inner_expression >>
@@ -76,6 +103,13 @@ named!(expression_choice<CompleteStr, Vec<Expression>>,
             ) >>
             (combine(Expression::FunctionCall(subexpression), rest))
         )
+  )
+);
+
+named!(expression_choice<CompleteStr, Vec<Expression>>,
+  alt!(
+        map!(infix_expression, |e| vec![e])
+      | non_infix_expression
   )
 );
 
@@ -136,16 +170,70 @@ fn parse_expression() {
     );
 
     assert_eq!(
-        expression(CompleteStr("1 + 2 + 3")),
+        expression(CompleteStr("1 |> 2 |> 3")),
         Ok((
             CompleteStr(""),
             Expression::InfixCall(InfixDetails {
-                operator: "+".to_string(),
+                operator: "|>".to_string(),
                 left: Box::new(Expression::SingleValue("1".to_string())),
                 right: Box::new(Expression::InfixCall(InfixDetails {
-                    operator: "+".to_string(),
+                    operator: "|>".to_string(),
                     left: Box::new(Expression::SingleValue("2".to_string())),
                     right: Box::new(Expression::SingleValue("3".to_string())),
+                })),
+            })
+        ))
+    );
+
+    assert_eq!(
+        expression(CompleteStr("Just 1 |> Maybe.withDefault 2")),
+        Ok((
+            CompleteStr(""),
+            Expression::InfixCall(InfixDetails {
+                operator: "|>".to_string(),
+                left: Box::new(Expression::FunctionCall(vec![
+                    Expression::SingleValue("Just".to_string()),
+                    Expression::SingleValue("1".to_string()),
+                ])),
+                right: Box::new(Expression::FunctionCall(vec![
+                    Expression::Dotted(vec![
+                        Expression::SingleValue("Maybe".to_string()),
+                        Expression::SingleValue("withDefault".to_string()),
+                    ]),
+                    Expression::SingleValue("2".to_string()),
+                ])),
+            })
+        ))
+    );
+
+    assert_eq!(
+        expression(CompleteStr(
+            "Just 1 |> Maybe.map myFunc |> Maybe.withDefault 3"
+        )),
+        Ok((
+            CompleteStr(""),
+            Expression::InfixCall(InfixDetails {
+                operator: "|>".to_string(),
+                left: Box::new(Expression::FunctionCall(vec![
+                    Expression::SingleValue("Just".to_string()),
+                    Expression::SingleValue("1".to_string()),
+                ])),
+                right: Box::new(Expression::InfixCall(InfixDetails {
+                    operator: "|>".to_string(),
+                    left: Box::new(Expression::FunctionCall(vec![
+                        Expression::Dotted(vec![
+                            Expression::SingleValue("Maybe".to_string()),
+                            Expression::SingleValue("map".to_string()),
+                        ]),
+                        Expression::SingleValue("myFunc".to_string()),
+                    ])),
+                    right: Box::new(Expression::FunctionCall(vec![
+                        Expression::Dotted(vec![
+                            Expression::SingleValue("Maybe".to_string()),
+                            Expression::SingleValue("withDefault".to_string()),
+                        ]),
+                        Expression::SingleValue("3".to_string()),
+                    ])),
                 })),
             })
         ))
