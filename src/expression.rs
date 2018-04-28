@@ -1,6 +1,12 @@
 use nom;
-use nom::multispace;
+use nom::{alphanumeric, digit, multispace};
 use nom::types::CompleteStr;
+
+/// Tests if byte is ASCII alphabetic: A-Z, a-z
+#[inline]
+pub fn is_lowercase(chr: char) -> bool {
+    (chr >= 'A' && chr <= 'Z')
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
@@ -8,6 +14,9 @@ pub enum Expression {
     FunctionCall(Vec<Expression>),
     Dotted(Vec<Expression>),
     InfixCall(InfixDetails),
+    Int(String),
+    Float(String),
+    Variable(String),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -26,8 +35,33 @@ fn combine_dot(first: Expression, mut rest: Vec<Expression>) -> Expression {
     }
 }
 
+named!(int<CompleteStr, Expression>,
+  map!(nom::digit, |v| Expression::Int(v.0.to_string()))
+);
+
+named!(float<CompleteStr, Expression>,
+  do_parse!(
+    start: digit >>
+    char!('.') >>
+    end: digit >>
+    (Expression::Float(start.0.to_owned() + "." + end.0))
+  )
+);
+
+named!(variable<CompleteStr, Expression>,
+  do_parse!(
+    start: take_while!(is_lowercase) >>
+    rest: alphanumeric >>
+    (Expression::Variable(start.0.to_owned() + rest.0))
+  )
+);
+
 named!(single_name<CompleteStr, Expression>,
-     map!(nom::alphanumeric, |v| Expression::SingleValue(v.0.to_string()))
+  alt!(
+       int
+     | float
+     | variable
+  )
 );
 
 named!(dot_expression<CompleteStr, Expression>,
@@ -125,13 +159,29 @@ named!(pub expression<CompleteStr, Expression>,
   map!(expression_choice, choose_expression)
 );
 
+#[cfg(test)]
+fn s(s_: &str) -> String {
+    s_.to_string()
+}
+
 #[test]
-fn parse_expression() {
+fn parse_int() {
     assert_eq!(
         expression(CompleteStr("1")),
-        Ok((CompleteStr(""), Expression::SingleValue("1".to_string())))
+        Ok((CompleteStr(""), Expression::Int(s("1"))))
     );
+}
 
+#[test]
+fn parse_float() {
+    assert_eq!(
+        expression(CompleteStr("1.01")),
+        Ok((CompleteStr(""), Expression::Float(s("1.01"))))
+    );
+}
+
+#[test]
+fn parse_expression() {
     assert_eq!(
         expression(CompleteStr("func value")),
         Ok((
