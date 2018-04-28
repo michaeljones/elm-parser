@@ -168,7 +168,7 @@ fn parse_elm_file() {
                         implementation: FunctionImplementation {
                             name: "a".to_string(),
                             args: vec![],
-                            expression: expression::Expression::SingleValue("1".to_string()),
+                            expression: expression::Expression::Int("1".to_string()),
                         },
                     }),
                 ],
