@@ -5,4 +5,4 @@ authors = ["Michael Jones <michael@zaptic.com>"]
 
 [dependencies]
 # nom = { version = "4.0.0-beta2", features = ["verbose-errors"] }
-nom = { git = "https://github.com/geal/nom" }
+nom = { git = "https://github.com/geal/nom", features = ["verbose-errors"] }

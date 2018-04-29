@@ -92,7 +92,7 @@ named!(function_implementation<CompleteStr, FunctionImplementation>,
       ) >> 
       tag!(" =\n") >>
       multispace >>
-      expression: expression >>
+      expression: call!(expression, 0) >>
       (FunctionImplementation {
           name: name.0.to_string(),
           args: args,
