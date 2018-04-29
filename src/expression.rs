@@ -195,9 +195,11 @@ named_args!(assignments(indentation: u32) <CompleteStr, Vec<AssignmentDetails>>,
 named_args!(let_block(indentation: u32) <CompleteStr, Expression>,
    do_parse!(
        tag!("let") >>
-       multispace >>
-       assignments: call!(assignments, indentation) >>
-       multispace >>
+       char!('\n') >>
+       assignment_indentation: call!(at_least_indent, indentation) >>
+       assignments: call!(assignments, assignment_indentation) >>
+       char!('\n') >>
+       call!(exactly_indent, indentation) >>
        tag!("in") >>
        (Expression::LetBlock(assignments))
    )
@@ -418,11 +420,13 @@ fn parse_simple_let_block() {
         let_block(
             CompleteStr(
                 "let
-    myvar = 1
-    myother = 1
-in"
+        myvar =
+            1
+        myother =
+            2
+    in"
             ),
-            0
+            4
         ),
         Ok((
             CompleteStr(""),
@@ -430,6 +434,10 @@ in"
                 AssignmentDetails {
                     name: s("myvar"),
                     expression: Box::new(Expression::Int(s("1"))),
+                },
+                AssignmentDetails {
+                    name: s("myother"),
+                    expression: Box::new(Expression::Int(s("2"))),
                 },
             ])
         ))
