@@ -2,9 +2,15 @@ use nom;
 use nom::{alphanumeric, digit, multispace};
 use nom::types::CompleteStr;
 
-/// Tests if byte is ASCII alphabetic: A-Z, a-z
+/// Tests if byte is ASCII: a-z
 #[inline]
 pub fn is_lowercase(chr: char) -> bool {
+    (chr >= 'a' && chr <= 'z')
+}
+
+/// Tests if byte is ASCII: A-Z
+#[inline]
+pub fn is_uppercase(chr: char) -> bool {
     (chr >= 'A' && chr <= 'Z')
 }
 
@@ -17,6 +23,8 @@ pub enum Expression {
     Int(String),
     Float(String),
     Variable(String),
+    Module(String),
+    TypeConstructor(String),
     Bracketed(Vec<Expression>),
 }
 
@@ -31,15 +39,6 @@ pub struct InfixDetails {
 pub struct AssignmentDetails {
     name: String,
     expression: Box<Expression>,
-}
-
-fn combine_dot(first: Expression, mut rest: Vec<Expression>) -> Expression {
-    if rest.is_empty() {
-        first
-    } else {
-        rest.insert(0, first);
-        Expression::Dotted(rest)
-    }
 }
 
 fn at_least(spaces: CompleteStr, indentation: u32) -> Result<u32, String> {
@@ -85,7 +84,7 @@ named!(float<CompleteStr, Expression>,
 
 named!(variable_name<CompleteStr, String>,
   do_parse!(
-    start: take_while!(is_lowercase) >>
+    start: take_while_m_n!(1, 1, is_lowercase) >>
     rest: alphanumeric >>
     (start.0.to_owned() + rest.0)
   )
@@ -95,25 +94,60 @@ named!(variable<CompleteStr, Expression>,
    map!(variable_name, Expression::Variable)
 );
 
-named!(single_name<CompleteStr, Expression>,
-  alt!(
-       int
-     | float
-     | variable
+named!(module_name<CompleteStr, String>,
+  do_parse!(
+    start: take_while_m_n!(1, 1, is_uppercase) >>
+    rest: alphanumeric >>
+    (start.0.to_owned() + rest.0)
   )
 );
 
+named!(module<CompleteStr, Expression>,
+   map!(module_name, Expression::Module)
+);
+
+named!(type_constructor_name<CompleteStr, String>,
+  do_parse!(
+    start: take_while_m_n!(1, 1, is_uppercase) >>
+    rest: alphanumeric >>
+    (start.0.to_owned() + rest.0)
+  )
+);
+
+named!(type_constructor<CompleteStr, Expression>,
+   map!(type_constructor_name, Expression::TypeConstructor)
+);
+
+fn combine_dot(
+    mut modules: Vec<Expression>,
+    mut variables: Vec<Expression>,
+    variable_or_type: Expression,
+) -> Expression {
+    if modules.len() > 0 || variables.len() > 0 {
+        let mut result = vec![];
+        result.append(&mut modules);
+        result.append(&mut variables);
+        result.push(variable_or_type);
+        Expression::Dotted(result)
+    } else {
+        variable_or_type
+    }
+}
+
 named!(dot_expression<CompleteStr, Expression>,
   do_parse!(
-      first: single_name >>
-      rest: many0!(
-          do_parse!(
-              tag!(".") >>
-              other: single_name >>
-              (other)
-          )
+      modules: many0!(
+        do_parse!(name: module >> char!('.') >> (name))
       ) >>
-      (combine_dot(first, rest))
+      variables: many0!(
+        do_parse!(name: variable >> char!('.') >> (name))
+      ) >>
+      variable_or_type: 
+          alt!(
+                variable
+              | type_constructor
+          ) >>
+      (combine_dot(modules, variables, variable_or_type))
   )
 );
 
@@ -155,15 +189,15 @@ named_args!(non_infix_expression(indentation: u32) <CompleteStr, Vec<Expression>
 
 named_args!(infix_expression(indentation: u32) <CompleteStr, Expression>,
     do_parse!(
-        left: call!(non_infix_expression, indentation) >>
+        left: map_res!(call!(non_infix_expression, indentation), choose_expression) >>
         multispace >>
         operator: operator >>
         multispace >>
-        right: call!(expression_choice, indentation) >>
+        right: map_res!(call!(expression_choice, indentation), choose_expression) >>
         (Expression::InfixCall(InfixDetails {
             operator: operator,
-            left: Box::new(choose_expression(left)),
-            right: Box::new(choose_expression(right))
+            left: Box::new(left),
+            right: Box::new(right)
         }))
     )
 );
@@ -213,16 +247,18 @@ named_args!(expression_choice(indentation: u32) <CompleteStr, Vec<Expression>>,
   )
 );
 
-fn choose_expression(data: Vec<Expression>) -> Expression {
+fn choose_expression(data: Vec<Expression>) -> Result<Expression, String> {
     if data.len() == 1 {
-        data[0].clone()
+        Ok(data[0].clone())
+    } else if data.is_empty() {
+        Err("Empty expression".to_string())
     } else {
-        Expression::FunctionCall(data)
+        Ok(Expression::FunctionCall(data))
     }
 }
 
 named_args!(pub expression(indentation: u32) <CompleteStr, Expression>,
-  map!(call!(expression_choice, indentation), choose_expression)
+  map_res!(call!(expression_choice, indentation), choose_expression)
 );
 
 #[cfg(test)]
@@ -233,7 +269,7 @@ fn s(s_: &str) -> String {
 #[test]
 fn parse_int() {
     assert_eq!(
-        expression(CompleteStr("1"), 0),
+        int(CompleteStr("1")),
         Ok((CompleteStr(""), Expression::Int(s("1"))))
     );
 }
@@ -241,9 +277,22 @@ fn parse_int() {
 #[test]
 fn parse_float() {
     assert_eq!(
-        expression(CompleteStr("1.01"), 0),
+        float(CompleteStr("1.01")),
         Ok((CompleteStr(""), Expression::Float(s("1.01"))))
     );
+}
+
+#[test]
+fn parse_variable() {
+    assert_eq!(
+        variable(CompleteStr("value")),
+        Ok((CompleteStr(""), Expression::Variable("value".to_string()),))
+    );
+}
+
+#[test]
+fn fails_uppercase_variable() {
+    assert!(variable(CompleteStr("Value")).is_err());
 }
 
 #[test]
@@ -320,12 +369,12 @@ fn parse_dotted_pipeline() {
             Expression::InfixCall(InfixDetails {
                 operator: "|>".to_string(),
                 left: Box::new(Expression::FunctionCall(vec![
-                    Expression::Variable("Just".to_string()),
+                    Expression::TypeConstructor("Just".to_string()),
                     Expression::Int(s("1")),
                 ])),
                 right: Box::new(Expression::FunctionCall(vec![
                     Expression::Dotted(vec![
-                        Expression::Variable("Maybe".to_string()),
+                        Expression::Module("Maybe".to_string()),
                         Expression::Variable("withDefault".to_string()),
                     ]),
                     Expression::Int(s("2")),
@@ -347,21 +396,21 @@ fn parse_complex_pipeline() {
             Expression::InfixCall(InfixDetails {
                 operator: "|>".to_string(),
                 left: Box::new(Expression::FunctionCall(vec![
-                    Expression::Variable("Just".to_string()),
+                    Expression::TypeConstructor("Just".to_string()),
                     Expression::Int("1".to_string()),
                 ])),
                 right: Box::new(Expression::InfixCall(InfixDetails {
                     operator: "|>".to_string(),
                     left: Box::new(Expression::FunctionCall(vec![
                         Expression::Dotted(vec![
-                            Expression::Variable("Maybe".to_string()),
+                            Expression::Module("Maybe".to_string()),
                             Expression::Variable("map".to_string()),
                         ]),
                         Expression::Variable("myFunc".to_string()),
                     ])),
                     right: Box::new(Expression::FunctionCall(vec![
                         Expression::Dotted(vec![
-                            Expression::Variable("Maybe".to_string()),
+                            Expression::Module("Maybe".to_string()),
                             Expression::Variable("withDefault".to_string()),
                         ]),
                         Expression::Int("3".to_string()),
