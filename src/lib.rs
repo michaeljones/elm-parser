@@ -7,9 +7,11 @@ use nom::types::CompleteStr;
 
 mod types;
 mod expression;
+mod import;
 
 use types::type_;
 use expression::expression;
+use import::imports;
 
 #[derive(Debug, PartialEq)]
 pub enum ModuleExposing {
@@ -26,6 +28,7 @@ pub enum Declaration {
 pub struct Module {
     pub name: String,
     pub exposing: ModuleExposing,
+    pub imports: Vec<import::Import>,
     pub contents: Vec<Declaration>,
 }
 
@@ -141,10 +144,14 @@ named!(pub elm_module<CompleteStr, Module>,
     name: module_name >>
     tag!(" exposing ") >>
     exposing: module_exposing >>
+    opt!(multispace) >>
+    imports: imports >>
+    opt!(multispace) >>
     contents: contents >>
     (Module {
         name: name.to_string(),
         exposing: exposing,
+        imports: imports,
         contents: contents
     })
   )
@@ -159,6 +166,13 @@ fn parse_elm_file() {
             Module {
                 name: "Basic".to_string(),
                 exposing: ModuleExposing::All,
+                imports: vec![
+                    import::Import {
+                        name: vec!["String".to_string()],
+                        alias: None,
+                        exposing: import::Exposing::None,
+                    },
+                ],
                 contents: vec![
                     Declaration::Function(FunctionDetails {
                         signature: Some(FunctionSignature {
@@ -172,21 +186,6 @@ fn parse_elm_file() {
                         },
                     }),
                 ],
-            }
-        ))
-    );
-}
-
-#[test]
-fn parse_elm_module_declaration() {
-    assert_eq!(
-        elm_module(CompleteStr("module Basic exposing (..)\n")),
-        Ok((
-            CompleteStr(""),
-            Module {
-                name: "Basic".to_string(),
-                exposing: ModuleExposing::All,
-                contents: vec![],
             }
         ))
     );
