@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate nom;
 
+/*
 use nom::{alphanumeric, multispace};
 
 use nom::types::CompleteStr;
@@ -8,7 +9,14 @@ use nom::types::CompleteStr;
 mod types;
 mod expression;
 mod import;
+*/
 
+mod ast;
+
+use ast::expression;
+use ast::statement;
+
+/*
 use types::type_;
 use expression::expression;
 use import::imports;
@@ -190,3 +198,4 @@ fn parse_elm_file() {
         ))
     );
 }
+*/
