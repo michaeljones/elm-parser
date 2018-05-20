@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate nom;
+extern crate regex;
 
 /*
 use nom::{alphanumeric, multispace};
@@ -12,9 +13,6 @@ mod import;
 */
 
 mod ast;
-
-use ast::expression;
-use ast::statement;
 
 /*
 use types::type_;
