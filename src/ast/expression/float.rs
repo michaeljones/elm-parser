@@ -22,8 +22,6 @@ mod tests {
     use ast::expression::*;
     use nom::types::CompleteStr;
 
-    // Floats
-
     #[test]
     fn float_literal() {
         assert_eq!(

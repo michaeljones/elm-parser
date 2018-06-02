@@ -1,4 +1,4 @@
-use ast::helpers::{lo_name, Name};
+use ast::helpers::Name;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
@@ -17,6 +17,6 @@ pub enum Expression {
     Let(Vec<(Expression, Expression)>, Box<Expression>),
     Case(Box<Expression>, Vec<(Expression, Expression)>),
     Lambda(Vec<Expression>, Box<Expression>),
-    Application(Box<Expression>, Box<Expression>),
+    Application(Vec<Expression>),
     BinOp(Box<Expression>, Box<Expression>, Box<Expression>),
 }

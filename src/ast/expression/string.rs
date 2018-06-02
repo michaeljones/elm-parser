@@ -3,7 +3,6 @@ use ast::expression::core::Expression;
 use nom::types::CompleteStr;
 
 named!(single_string<CompleteStr, String>,
-  dbg_dmp!(
   map!(
     delimited!(
       char!('"'),
@@ -12,7 +11,6 @@ named!(single_string<CompleteStr, String>,
     ),
     // There is a match above so we'll have a single entry in the vec
     |v| v[0].to_string()
-  )
   )
 );
 
