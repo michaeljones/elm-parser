@@ -216,6 +216,34 @@ named_args!(let_expression(indentation: u32) <CompleteStr, Expression>,
    )
 );
 
+named_args!(case(indentation: u32) <CompleteStr, (Expression, Expression)>,
+   do_parse!(
+       matcher: call!(expression, indentation) >>
+       call!(spaces_or_new_line_and_indent, indentation) >>
+       tag!("->") >>
+       new_indent: call!(spaces_or_new_line_and_indent, indentation) >>
+       expression: call!(expression, new_indent) >>
+       (matcher, expression)
+   )
+);
+
+named_args!(cases(indentation: u32) <CompleteStr, Vec<(Expression, Expression)>>,
+    separated_nonempty_list!(call!(new_line_and_exact_indent, indentation), call!(case, indentation))
+);
+
+named_args!(case_expression(indentation: u32) <CompleteStr, Expression>,
+   do_parse!(
+       tag!("case") >>
+       call!(spaces_or_new_line_and_indent, indentation) >>
+       expression: call!(expression, indentation) >>
+       call!(spaces_or_new_line_and_indent, indentation) >>
+       tag!("of") >>
+       new_indent: call!(spaces_or_new_line_and_indent, indentation) >>
+       cases: call!(cases, new_indent) >>
+       (Expression::Case(Box::new(expression), cases))
+   )
+);
+
 // Application followed by possibly a operator + expression
 named_args!(binary(indentation: u32) <CompleteStr, Expression>,
    do_parse!(
@@ -244,7 +272,7 @@ named_args!(pub expression(indentation: u32) <CompleteStr, Expression>,
   alt!(
          call!(binary, indentation)
        | call!(let_expression, indentation)
-    // | case_expression
+       | call!(case_expression, indentation)
     // | if_expression
        | call!(lambda, indentation)
   )
@@ -262,6 +290,10 @@ mod tests {
 
     fn int(text: &str) -> Expression {
         Expression::Integer(text.to_string())
+    }
+
+    fn application(a: Expression, b: Expression) -> Expression {
+        Expression::Application(Box::new(a), Box::new(b))
     }
 
     // Tuples
@@ -450,15 +482,15 @@ mod tests {
             application_or_var(CompleteStr("a  { r | f = 1 } c"), 0),
             Ok((
                 CompleteStr(""),
-                Expression::Application(
-                    Box::new(Expression::Application(
-                        Box::new(var("a")),
-                        Box::new(Expression::RecordUpdate(
+                application(
+                    application(
+                        var("a"),
+                        Expression::RecordUpdate(
                             "r".to_string(),
                             vec![("f".to_string(), int("1"))]
-                        ))
-                    )),
-                    Box::new(var("c"))
+                        )
+                    ),
+                    var("c")
                 )
             ))
         );
@@ -525,12 +557,7 @@ mod tests {
             record(CompleteStr("{ a = Just 2 }"), 0),
             Ok((
                 CompleteStr(""),
-                Expression::Record(vec![
-                    (
-                        "a".to_string(),
-                        Expression::Application(Box::new(var("Just")), Box::new(int("2"))),
-                    ),
-                ])
+                Expression::Record(vec![("a".to_string(), application(var("Just"), int("2")))])
             ))
         );
     }
@@ -543,12 +570,7 @@ mod tests {
                 CompleteStr(""),
                 Expression::RecordUpdate(
                     "a".to_string(),
-                    vec![
-                        (
-                            "a".to_string(),
-                            Expression::Application(Box::new(var("Just")), Box::new(int("2"))),
-                        ),
-                    ],
+                    vec![("a".to_string(), application(var("Just"), int("2")))],
                 )
             ))
         );
@@ -649,7 +671,7 @@ in
                 Expression::Let(
                     vec![
                         (
-                            Expression::Application(Box::new(var("f")), Box::new(var("x"))),
+                            application(var("f"), var("x")),
                             Expression::BinOp(
                                 Box::new(var("+")),
                                 Box::new(var("x")),
@@ -657,10 +679,161 @@ in
                             ),
                         ),
                     ],
-                    Box::new(Expression::Application(
-                        Box::new(var("f")),
-                        Box::new(int("4"))
-                    ))
+                    Box::new(application(var("f"), int("4")))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn let_block_function_2() {
+        assert_eq!(
+            let_expression(
+                CompleteStr(
+                    "let
+  f x = x + 1
+  g x = x + 1
+in
+  f 4"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Expression::Let(
+                    vec![
+                        (
+                            application(var("f"), var("x")),
+                            Expression::BinOp(
+                                Box::new(var("+")),
+                                Box::new(var("x")),
+                                Box::new(int("1")),
+                            ),
+                        ),
+                        (
+                            application(var("g"), var("x")),
+                            Expression::BinOp(
+                                Box::new(var("+")),
+                                Box::new(var("x")),
+                                Box::new(int("1")),
+                            ),
+                        ),
+                    ],
+                    Box::new(application(var("f"), int("4")))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn let_block_multiple_bindings() {
+        assert_eq!(
+            let_expression(
+                CompleteStr(
+                    "let
+  a = 42
+  b = a + 1
+in
+  b"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Expression::Let(
+                    vec![
+                        (var("a"), int("42")),
+                        (
+                            var("b"),
+                            Expression::BinOp(
+                                Box::new(var("+")),
+                                Box::new(var("a")),
+                                Box::new(int("1")),
+                            ),
+                        ),
+                    ],
+                    Box::new(var("b"))
+                )
+            ))
+        );
+    }
+
+    // Case Expressions
+
+    #[test]
+    fn case_simple_statement() {
+        assert_eq!(
+            case_expression(
+                CompleteStr(
+                    "case x of
+  Nothing ->
+    0
+  Just y ->
+    y"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Expression::Case(
+                    Box::new(var("x")),
+                    vec![
+                        (var("Nothing"), int("0")),
+                        (application(var("Just"), var("y")), var("y")),
+                    ],
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn case_binding_to_underscore() {
+        assert_eq!(
+            case_expression(
+                CompleteStr(
+                    "case x of
+  _ ->
+    42"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Expression::Case(Box::new(var("x")), vec![(var("_"), int("42"))])
+            ))
+        );
+    }
+
+    #[test]
+    fn case_nested() {
+        assert_eq!(
+            case_expression(
+                CompleteStr(
+                    "case x of
+  a -> a
+  b ->
+    case y of
+      a1 -> a1
+      b1 -> b1
+  c -> c"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Expression::Case(
+                    Box::new(var("x")),
+                    vec![
+                        (var("a"), var("a")),
+                        (
+                            var("b"),
+                            Expression::Case(
+                                Box::new(var("y")),
+                                vec![(var("a1"), var("a1")), (var("b1"), var("b1"))],
+                            ),
+                        ),
+                        (var("c"), var("c")),
+                    ]
                 )
             ))
         );
