@@ -14,7 +14,7 @@ use ast::expression::float::float;
 use ast::expression::integer::integer;
 use ast::expression::variable::variable;
 use ast::expression::access::access;
-use ast::helpers::{at_least_indent, lo_name, operator};
+use ast::helpers::{lo_name, new_line_and_exact_indent, operator, spaces_or_new_line_and_indent};
 
 // use nom;
 use nom::{multispace, multispace0, space1};
@@ -129,6 +129,14 @@ named_args!(record_update(indentation: u32) <CompleteStr, Expression>,
   )
 );
 
+named_args!(parens(indentation: u32) <CompleteStr, Expression>,
+    delimited!(
+        char!('('),
+        call!(expression, indentation),
+        char!(')')
+    )
+);
+
 named_args!(term(indentation: u32) <CompleteStr, Expression>,
   alt!(
       access
@@ -138,7 +146,7 @@ named_args!(term(indentation: u32) <CompleteStr, Expression>,
     | float
     | integer
     | character
-    // | parens (between_ whitespace (expression ops))
+    | call!(parens, indentation)
     | call!(list, indentation)
     | call!(tuple, indentation)
     | call!(record_update, indentation)
@@ -157,40 +165,64 @@ named_args!(lambda(indentation: u32) <CompleteStr, Expression>,
   )
 );
 
-named_args!(spaces_or_new_line_and_indent(indentation: u32) <CompleteStr, String>,
-    alt!(
-          map!(is_a!(" "), |s| s.to_string())
-        | do_parse!(
-            char!('\n') >>
-            call!(at_least_indent, indentation) >>
-            ("".to_string())
-          )
-    )
-);
-
 named_args!(application_or_var(indentation: u32) <CompleteStr, Expression>,
-  map!(
+  map_res!(
       separated_list!(
           call!(spaces_or_new_line_and_indent, indentation),
           call!(term, indentation)
       ),
-      |v| {
-          if v.len() == 1 {
-              v[0].clone()
+      |v: Vec<Expression>| {
+          if v.len() == 0 {
+              Err("Empty list".to_string())
+          }
+          else if v.len() == 1 {
+              Ok(v[0].clone())
           } else {
-              Expression::Application(v)
+              let mut app = Expression::Application(Box::new(v[0].clone()), Box::new(v[1].clone()));
+              for entry in v.iter().skip(2) {
+                  app = Expression::Application(Box::new(app), Box::new(entry.clone()))
+              }
+              Ok(app)
           }
       }
   )
 );
 
+named_args!(let_binding(indentation: u32) <CompleteStr, (Expression, Expression)>,
+   do_parse!(
+       binding: call!(expression, indentation) >>
+       call!(spaces_or_new_line_and_indent, indentation) >>
+       char!('=') >>
+       new_indent: call!(spaces_or_new_line_and_indent, indentation) >>
+       expression: call!(expression, new_indent) >>
+       (binding, expression)
+   )
+);
+
+named_args!(let_bindings(indentation: u32) <CompleteStr, Vec<(Expression, Expression)>>,
+    separated_nonempty_list!(call!(new_line_and_exact_indent, indentation), call!(let_binding, indentation))
+);
+
+named_args!(let_expression(indentation: u32) <CompleteStr, Expression>,
+   do_parse!(
+       tag!("let") >>
+       assignment_indentation: call!(spaces_or_new_line_and_indent, indentation) >>
+       assignments: call!(let_bindings, assignment_indentation) >>
+       call!(spaces_or_new_line_and_indent, indentation) >>
+       tag!("in") >>
+       call!(spaces_or_new_line_and_indent, indentation) >>
+       expression: call!(expression, indentation) >>
+       (Expression::Let(assignments, Box::new(expression)))
+   )
+);
+
 // Application followed by possibly a operator + expression
 named_args!(binary(indentation: u32) <CompleteStr, Expression>,
-   dbg_dmp!(
    do_parse!(
      application_or_var: call!(application_or_var, indentation) >>
      operator_exp: opt!(
        do_parse!(
+         call!(spaces_or_new_line_and_indent, indentation) >>
          operator: operator >>
          multispace >>
          expression: call!(expression, indentation) >>
@@ -206,13 +238,12 @@ named_args!(binary(indentation: u32) <CompleteStr, Expression>,
          None => application_or_var
      })
   )
-  )
 );
 
 named_args!(pub expression(indentation: u32) <CompleteStr, Expression>,
   alt!(
          call!(binary, indentation)
-    // | let_expression
+       | call!(let_expression, indentation)
     // | case_expression
     // | if_expression
        | call!(lambda, indentation)
@@ -300,6 +331,7 @@ mod tests {
     }
 
     // Application or Var
+
     #[test]
     fn simple_variable() {
         assert_eq!(
@@ -311,10 +343,123 @@ mod tests {
     #[test]
     fn simple_application() {
         assert_eq!(
-            application_or_var(CompleteStr("Just abc"), 0),
+            application_or_var(CompleteStr("f a"), 0),
             Ok((
                 CompleteStr(""),
-                Expression::Application(vec![var("Just"), var("abc")])
+                Expression::Application(Box::new(var("f")), Box::new(var("a")))
+            ))
+        );
+    }
+
+    #[test]
+    fn curried_application() {
+        assert_eq!(
+            application_or_var(CompleteStr("f a b"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Application(
+                    Box::new(Expression::Application(
+                        Box::new(var("f")),
+                        Box::new(var("a"))
+                    )),
+                    Box::new(var("b"))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn curried_application_with_parens() {
+        assert_eq!(
+            application_or_var(CompleteStr("(f a) b"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Application(
+                    Box::new(Expression::Application(
+                        Box::new(var("f")),
+                        Box::new(var("a"))
+                    )),
+                    Box::new(var("b"))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn multiline_application() {
+        assert_eq!(
+            application_or_var(CompleteStr("f\n   a\n b"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Application(
+                    Box::new(Expression::Application(
+                        Box::new(var("f")),
+                        Box::new(var("a"))
+                    )),
+                    Box::new(var("b"))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn multiline_bug() {
+        assert_eq!(
+            application_or_var(CompleteStr("f\n (==)"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Application(Box::new(var("f")), Box::new(var("=="))),
+            ))
+        );
+    }
+
+    #[test]
+    fn same_multiline_bug() {
+        assert_eq!(
+            application_or_var(CompleteStr("f\n \"I like the symbol =\""), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Application(
+                    Box::new(var("f")),
+                    Box::new(Expression::String("I like the symbol =".to_string()))
+                ),
+            ))
+        );
+    }
+
+    #[test]
+    fn constructor_application() {
+        assert_eq!(
+            application_or_var(CompleteStr("Cons a Nil"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Application(
+                    Box::new(Expression::Application(
+                        Box::new(var("Cons")),
+                        Box::new(var("a"))
+                    )),
+                    Box::new(var("Nil"))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn application_with_record_update() {
+        assert_eq!(
+            application_or_var(CompleteStr("a  { r | f = 1 } c"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Application(
+                    Box::new(Expression::Application(
+                        Box::new(var("a")),
+                        Box::new(Expression::RecordUpdate(
+                            "r".to_string(),
+                            vec![("f".to_string(), int("1"))]
+                        ))
+                    )),
+                    Box::new(var("c"))
+                )
             ))
         );
     }
@@ -383,7 +528,7 @@ mod tests {
                 Expression::Record(vec![
                     (
                         "a".to_string(),
-                        Expression::Application(vec![var("Just"), int("2")]),
+                        Expression::Application(Box::new(var("Just")), Box::new(int("2"))),
                     ),
                 ])
             ))
@@ -401,7 +546,7 @@ mod tests {
                     vec![
                         (
                             "a".to_string(),
-                            Expression::Application(vec![var("Just"), int("2")]),
+                            Expression::Application(Box::new(var("Just")), Box::new(int("2"))),
                         ),
                     ],
                 )
@@ -419,6 +564,104 @@ mod tests {
                     ("a".to_string(), var("a")),
                     ("b".to_string(), var("b")),
                 ],)
+            ))
+        );
+    }
+
+    // Binary Ops
+
+    #[test]
+    fn simple_binary_op() {
+        assert_eq!(
+            binary(CompleteStr("x + 1"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::BinOp(Box::new(var("+")), Box::new(var("x")), Box::new(int("1")),)
+            ))
+        );
+    }
+
+    // Let Expressions
+
+    #[test]
+    fn let_single_binding() {
+        assert_eq!(
+            let_binding(CompleteStr("a = 42"), 0),
+            Ok((CompleteStr(""), (var("a"), int("42"))))
+        );
+    }
+
+    #[test]
+    fn let_group_single_binding() {
+        assert_eq!(
+            let_bindings(CompleteStr("a = 42"), 0),
+            Ok((CompleteStr(""), vec![(var("a"), int("42"))]))
+        );
+    }
+
+    #[test]
+    fn let_block_with_single_binding() {
+        assert_eq!(
+            let_expression(CompleteStr("let a = 42 in a"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Let(vec![(var("a"), int("42"))], Box::new(var("a")))
+            ))
+        );
+    }
+
+    #[test]
+    fn let_block_bind_to_underscore() {
+        assert_eq!(
+            let_expression(CompleteStr("let _ = 42 in 24"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Let(vec![(var("_"), int("42"))], Box::new(int("24")))
+            ))
+        );
+    }
+
+    #[test]
+    fn let_block_can_start_with_a_tag_name() {
+        assert_eq!(
+            let_expression(CompleteStr("let letter = 1 \n in letter"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Let(vec![(var("letter"), int("1"))], Box::new(var("letter")))
+            ))
+        );
+    }
+
+    #[test]
+    fn let_block_function_1() {
+        assert_eq!(
+            let_expression(
+                CompleteStr(
+                    "let
+ f x = x + 1
+in
+ f 4"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Expression::Let(
+                    vec![
+                        (
+                            Expression::Application(Box::new(var("f")), Box::new(var("x"))),
+                            Expression::BinOp(
+                                Box::new(var("+")),
+                                Box::new(var("x")),
+                                Box::new(int("1")),
+                            ),
+                        ),
+                    ],
+                    Box::new(Expression::Application(
+                        Box::new(var("f")),
+                        Box::new(int("4"))
+                    ))
+                )
             ))
         );
     }

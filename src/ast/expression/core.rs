@@ -17,6 +17,6 @@ pub enum Expression {
     Let(Vec<(Expression, Expression)>, Box<Expression>),
     Case(Box<Expression>, Vec<(Expression, Expression)>),
     Lambda(Vec<Expression>, Box<Expression>),
-    Application(Vec<Expression>),
+    Application(Box<Expression>, Box<Expression>),
     BinOp(Box<Expression>, Box<Expression>, Box<Expression>),
 }

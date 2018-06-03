@@ -9,6 +9,13 @@ pub type ModuleName = Vec<String>;
 
 pub type Alias = String;
 
+const RESERVED_WORDS: &[&str] = &[
+    "module", "where", "import", "as", "exposing", "type", "alias", "port", "if", "then", "else",
+    "let", "in", "case", "of",
+];
+
+const RESERVED_OPERATORS: &[&str] = &["=", ".", "..", "->", "--", "|", ":"];
+
 /// Tests if byte is ASCII: a-z
 #[inline]
 pub fn is_lowercase(chr: char) -> bool {
@@ -24,10 +31,20 @@ pub fn is_uppercase(chr: char) -> bool {
 named!(pub lo_name<CompleteStr, String>,
   alt!(
       map!(tag!("_"), |v| v.to_string())
-    | do_parse!(
-        start: take_while_m_n!(1, 1, is_lowercase) >>
-        rest: map!(alphanumeric0, |v| v.to_string()) >>
-        (start.to_string() + &rest)
+    | map_res!(
+        do_parse!(
+          start: take_while_m_n!(1, 1, is_lowercase) >>
+          rest: map!(alphanumeric0, |v| v.to_string()) >>
+          (start.to_string() + &rest)
+        ),
+        |name: String| {
+            if RESERVED_WORDS.contains(&name.as_str()) {
+                Err("Reserved word: ".to_string() + &name)
+            }
+            else {
+                Ok(name)
+            }
+        }
       )
   ) 
 );
@@ -41,21 +58,32 @@ named!(pub up_name<CompleteStr, String>,
 );
 
 named!(pub operator<CompleteStr, String>,
-  map!(re_match!(r"^[+\\-\\/*=.$<>:&|^?%#@~!]+"), |s| s.to_string())
+  map_res!(
+    map!(re_matches!(r"^([+\\-\\/*=.$<>:&|^?%#@~!]+)"), |c| c[0].to_string()),
+    |op: String| {
+        if RESERVED_OPERATORS.contains(&op.as_str()) {
+            Err("Reserved operator: ".to_string() + &op)
+        }
+        else {
+            Ok(op)
+        }
+    }
+  )
 );
 
-fn at_least(spaces: CompleteStr, indentation: u32) -> Result<u32, String> {
-    let length = spaces.0.len() as u32;
-    // Expect to have more than the indentation
-    if length > indentation {
-        Ok(length)
-    } else {
-        Err(spaces.to_string())
-    }
-}
-
 named_args!(pub at_least_indent(indentation: u32) <CompleteStr, u32>,
-  map_res!(is_a!(" "), |s| at_least(s, indentation))
+  map_res!(
+      many0!(char!(' ')),
+      |spaces: Vec<char>|  {
+        let length = spaces.len() as u32;
+        // Expect to have the same or more indentation
+        if length >= indentation {
+            Ok(length)
+        } else {
+            Err("Not enough spaces".to_string())
+        }
+      }
+  )
 );
 
 fn exactly(spaces: CompleteStr, indentation: u32) -> Result<u32, String> {
@@ -71,3 +99,55 @@ fn exactly(spaces: CompleteStr, indentation: u32) -> Result<u32, String> {
 named_args!(pub exactly_indent(indentation: u32) <CompleteStr, u32>,
   map_res!(is_a!(" "), |s| exactly(s, indentation))
 );
+
+named_args!(pub new_line_and_exact_indent(indentation: u32) <CompleteStr, (char, u32)>, 
+    tuple!(
+        char!('\n'),
+        call!(exactly_indent, indentation)
+    )
+);
+
+named_args!(pub spaces_or_new_line_and_indent(indentation: u32) <CompleteStr, u32>,
+    alt!(
+          do_parse!(
+            many0!(char!(' ')) >>
+            char!('\n') >>
+            indent: call!(at_least_indent, indentation) >>
+            (indent)
+          )
+        | map!(is_a!(" "), |s| indentation + s.to_string().len() as u32)
+    )
+);
+
+#[cfg(test)]
+mod tests {
+
+    use ast::helpers::*;
+    use nom::types::CompleteStr;
+
+    #[test]
+    fn simple_operator() {
+        assert_eq!(
+            operator(CompleteStr("==")),
+            Ok((CompleteStr(""), "==".to_string()))
+        );
+    }
+
+    #[test]
+    fn invalid_operator() {
+        assert!(operator(CompleteStr("=")).is_err());
+    }
+
+    #[test]
+    fn valid_zero_spaces() {
+        assert_eq!(
+            spaces_or_new_line_and_indent(CompleteStr("\n"), 0),
+            Ok((CompleteStr(""), 0))
+        );
+    }
+
+    #[test]
+    fn invalid_zero_spaces() {
+        assert!(spaces_or_new_line_and_indent(CompleteStr("\n"), 1).is_err());
+    }
+}

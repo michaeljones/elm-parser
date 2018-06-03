@@ -1,7 +1,7 @@
 use nom::types::CompleteStr;
 
 use ast::expression::core::Expression;
-use ast::helpers::{lo_name, up_name};
+use ast::helpers::{lo_name, operator, up_name};
 
 named!(lower_case<CompleteStr, Expression>,
   map!(
@@ -17,10 +17,18 @@ named!(upper_with_dots<CompleteStr, Expression>,
   )
 );
 
+named!(op<CompleteStr, Expression>,
+  map!(
+      delimited!(char!('('), operator, char!(')')),
+      |s| Expression::Variable(vec![s])
+  )
+);
+
 named!(pub variable<CompleteStr, Expression>,
   alt!(
       lower_case
     | upper_with_dots
+    | op
   )
 );
 
@@ -67,6 +75,17 @@ mod tests {
             Ok((
                 CompleteStr(""),
                 Expression::Variable(vec!["Abc".to_string()])
+            ))
+        );
+    }
+
+    #[test]
+    fn operator_in_parens() {
+        assert_eq!(
+            variable(CompleteStr("(==)")),
+            Ok((
+                CompleteStr(""),
+                Expression::Variable(vec!["==".to_string()])
             ))
         );
     }
