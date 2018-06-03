@@ -15,6 +15,12 @@ pub fn is_lowercase(chr: char) -> bool {
     (chr >= 'a' && chr <= 'z')
 }
 
+/// Tests if byte is ASCII: a-z
+#[inline]
+pub fn is_uppercase(chr: char) -> bool {
+    (chr >= 'A' && chr <= 'Z')
+}
+
 named!(pub lo_name<CompleteStr, String>,
   alt!(
       map!(tag!("_"), |v| v.to_string())
@@ -24,6 +30,14 @@ named!(pub lo_name<CompleteStr, String>,
         (start.to_string() + &rest)
       )
   ) 
+);
+
+named!(pub up_name<CompleteStr, String>,
+  do_parse!(
+    start: take_while_m_n!(1, 1, is_uppercase) >>
+    rest: map!(alphanumeric0, |v| v.to_string()) >>
+    (start.to_string() + &rest)
+  )
 );
 
 named!(pub operator<CompleteStr, String>,

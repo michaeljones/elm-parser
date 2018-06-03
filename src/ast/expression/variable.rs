@@ -1,12 +1,26 @@
 use nom::types::CompleteStr;
 
 use ast::expression::core::Expression;
-use ast::helpers::lo_name;
+use ast::helpers::{lo_name, up_name};
+
+named!(lower_case<CompleteStr, Expression>,
+  map!(
+    lo_name,
+    |v| Expression::Variable(vec!(v))
+  )
+);
+
+named!(upper_with_dots<CompleteStr, Expression>,
+  map!(
+    separated_nonempty_list!(char!('.'), up_name),
+    |v| Expression::Variable(v)
+  )
+);
 
 named!(pub variable<CompleteStr, Expression>,
-  map!(
-    map!(lo_name, |v| vec!(v)),
-    Expression::Variable
+  alt!(
+      lower_case
+    | upper_with_dots
   )
 );
 
@@ -47,8 +61,14 @@ mod tests {
     }
 
     #[test]
-    fn invalid_variable_1() {
-        assert!(variable(CompleteStr("Abc")).is_err());
+    fn upper_letter_variable() {
+        assert_eq!(
+            variable(CompleteStr("Abc")),
+            Ok((
+                CompleteStr(""),
+                Expression::Variable(vec!["Abc".to_string()])
+            ))
+        );
     }
 
     #[test]

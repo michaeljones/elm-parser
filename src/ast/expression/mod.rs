@@ -14,7 +14,7 @@ use ast::expression::float::float;
 use ast::expression::integer::integer;
 use ast::expression::variable::variable;
 use ast::expression::access::access;
-use ast::helpers::{at_least_indent, operator};
+use ast::helpers::{at_least_indent, lo_name, operator};
 
 // use nom;
 use nom::{multispace, multispace0, space1};
@@ -59,6 +59,76 @@ named_args!(list(indentation: u32) <CompleteStr, Expression>,
   )
 );
 
+named_args!(record(indentation: u32) <CompleteStr, Expression>,
+  map!(
+    delimited!(
+        char!('{'),
+        separated_list!(
+            char!(','),
+            do_parse!(
+                multispace0 >>
+                name: lo_name >>
+                multispace0 >>
+                char!('=') >>
+                multispace0 >>
+                expression: call!(expression, indentation) >>
+                multispace0 >>
+                ((name, expression))
+            )
+        ),
+        char!('}')
+    ),
+    Expression::Record
+  )
+);
+
+named_args!(simplified_record(indentation: u32) <CompleteStr, Expression>,
+  map!(
+    delimited!(
+        char!('{'),
+        separated_list!(
+            char!(','),
+            do_parse!(
+                multispace0 >>
+                name: lo_name >>
+                multispace0 >>
+                ((name.clone(), Expression::Variable(vec![name.to_string()])))
+            )
+        ),
+        char!('}')
+    ),
+    Expression::Record
+  )
+);
+
+named_args!(record_update(indentation: u32) <CompleteStr, Expression>,
+  delimited!(
+    char!('{'),
+    do_parse!(
+      multispace0 >>
+      name: lo_name >>
+      multispace0 >>
+      char!('|') >>
+      multispace0 >>
+      pairs: separated_list!(
+        char!(','),
+        do_parse!(
+          multispace0 >>
+          name: lo_name >>
+          multispace0 >>
+          char!('=') >>
+          multispace0 >>
+          expression: call!(expression, indentation) >>
+          multispace0 >>
+          ((name, expression))
+        )
+      ) >>
+      (Expression::RecordUpdate(name.to_string(), pairs))
+    ),
+    char!('}')
+  )
+);
+
 named_args!(term(indentation: u32) <CompleteStr, Expression>,
   alt!(
       access
@@ -71,9 +141,9 @@ named_args!(term(indentation: u32) <CompleteStr, Expression>,
     // | parens (between_ whitespace (expression ops))
     | call!(list, indentation)
     | call!(tuple, indentation)
-    // | recordUpdate ops
-    // | record ops
-    // | simplifiedRecord
+    | call!(record_update, indentation)
+    | call!(record, indentation)
+    | call!(simplified_record, indentation)
   )
 );
 
@@ -159,6 +229,10 @@ mod tests {
         Expression::Variable(vec![name.to_string()])
     }
 
+    fn int(text: &str) -> Expression {
+        Expression::Integer(text.to_string())
+    }
+
     // Tuples
 
     #[test]
@@ -207,13 +281,7 @@ mod tests {
     fn simple_int_list() {
         assert_eq!(
             list(CompleteStr("[1,2]"), 0),
-            Ok((
-                CompleteStr(""),
-                Expression::List(vec![
-                    Expression::Integer("1".to_string()),
-                    Expression::Integer("2".to_string()),
-                ])
-            ))
+            Ok((CompleteStr(""), Expression::List(vec![int("1"), int("2")])))
         );
     }
 
@@ -227,6 +295,130 @@ mod tests {
                     Expression::Tuple(vec![var("a"), var("b")]),
                     Expression::Tuple(vec![var("a"), var("b")]),
                 ])
+            ))
+        );
+    }
+
+    // Application or Var
+    #[test]
+    fn simple_variable() {
+        assert_eq!(
+            application_or_var(CompleteStr("abc"), 0),
+            Ok((CompleteStr(""), var("abc")))
+        );
+    }
+
+    #[test]
+    fn simple_application() {
+        assert_eq!(
+            application_or_var(CompleteStr("Just abc"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Application(vec![var("Just"), var("abc")])
+            ))
+        );
+    }
+
+    // Record
+
+    #[test]
+    fn simple_record() {
+        assert_eq!(
+            record(CompleteStr("{ a = b }"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Record(vec![("a".to_string(), var("b"))])
+            ))
+        );
+    }
+
+    #[test]
+    fn simple_record_with_many_fields() {
+        assert_eq!(
+            record(CompleteStr("{ a = b, b = 2 }"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Record(vec![
+                    ("a".to_string(), var("b")),
+                    ("b".to_string(), int("2")),
+                ])
+            ))
+        );
+    }
+
+    #[test]
+    fn simple_record_with_many_tuple_fields() {
+        assert_eq!(
+            record(CompleteStr("{ a = (a, b), b = (a, b) }"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Record(vec![
+                    ("a".to_string(), Expression::Tuple(vec![var("a"), var("b")])),
+                    ("b".to_string(), Expression::Tuple(vec![var("a"), var("b")])),
+                ])
+            ))
+        );
+    }
+
+    #[test]
+    fn simple_record_with_updated_field() {
+        assert_eq!(
+            record_update(CompleteStr("{ a | b = 2, c = 3 }"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::RecordUpdate(
+                    "a".to_string(),
+                    vec![("b".to_string(), int("2")), ("c".to_string(), int("3"))]
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn simple_record_with_advanced_field() {
+        assert_eq!(
+            record(CompleteStr("{ a = Just 2 }"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Record(vec![
+                    (
+                        "a".to_string(),
+                        Expression::Application(vec![var("Just"), int("2")]),
+                    ),
+                ])
+            ))
+        );
+    }
+
+    #[test]
+    fn simple_record_update_with_advanced_field() {
+        assert_eq!(
+            record_update(CompleteStr("{ a | a = Just 2 }"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::RecordUpdate(
+                    "a".to_string(),
+                    vec![
+                        (
+                            "a".to_string(),
+                            Expression::Application(vec![var("Just"), int("2")]),
+                        ),
+                    ],
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn simple_record_destructuring_pattern() {
+        assert_eq!(
+            simplified_record(CompleteStr("{ a, b }"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Record(vec![
+                    ("a".to_string(), var("a")),
+                    ("b".to_string(), var("b")),
+                ],)
             ))
         );
     }
