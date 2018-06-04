@@ -3,6 +3,7 @@ mod string;
 mod float;
 mod integer;
 mod access;
+mod access_function;
 mod variable;
 mod core;
 
@@ -14,6 +15,7 @@ use ast::expression::float::float;
 use ast::expression::integer::integer;
 use ast::expression::variable::variable;
 use ast::expression::access::access;
+use ast::expression::access_function::access_function;
 use ast::helpers::{lo_name, new_line_and_exact_indent, operator, spaces_or_new_line_and_indent};
 
 // use nom;
@@ -137,11 +139,13 @@ named_args!(parens(indentation: u32) <CompleteStr, Expression>,
     )
 );
 
+// Term
+
 named_args!(term(indentation: u32) <CompleteStr, Expression>,
   alt!(
       access
     | variable
-    // | accessFunction
+    | access_function
     | string
     | float
     | integer
@@ -155,15 +159,21 @@ named_args!(term(indentation: u32) <CompleteStr, Expression>,
   )
 );
 
+// Lambda
+
 named_args!(lambda(indentation: u32) <CompleteStr, Expression>,
   do_parse!(
     char!('\\') >>
     args: separated_nonempty_list!(space1, call!(term, indentation)) >>
+    call!(spaces_or_new_line_and_indent, indentation) >>
     tag!("->") >>
-    body: call!(expression, indentation) >>
+    new_indent: call!(spaces_or_new_line_and_indent, indentation) >>
+    body: call!(expression, new_indent) >>
     (Expression::Lambda(args, Box::new(body)))
   )
 );
+
+// Application
 
 named_args!(application_or_var(indentation: u32) <CompleteStr, Expression>,
   map_res!(
@@ -187,6 +197,8 @@ named_args!(application_or_var(indentation: u32) <CompleteStr, Expression>,
       }
   )
 );
+
+// Let Expression
 
 named_args!(let_binding(indentation: u32) <CompleteStr, (Expression, Expression)>,
    do_parse!(
@@ -216,6 +228,8 @@ named_args!(let_expression(indentation: u32) <CompleteStr, Expression>,
    )
 );
 
+// Case Expression
+
 named_args!(case(indentation: u32) <CompleteStr, (Expression, Expression)>,
    do_parse!(
        matcher: call!(expression, indentation) >>
@@ -244,14 +258,45 @@ named_args!(case_expression(indentation: u32) <CompleteStr, Expression>,
    )
 );
 
-// Application followed by possibly a operator + expression
+// If Expression
+
+named_args!(if_expression(indentation: u32) <CompleteStr, Expression>,
+   do_parse!(
+       tag!("if") >>
+       call!(spaces_or_new_line_and_indent, indentation) >>
+       test: call!(expression, indentation) >>
+       call!(spaces_or_new_line_and_indent, indentation) >>
+       tag!("then") >>
+       new_indent: call!(spaces_or_new_line_and_indent, indentation) >>
+       if_exp: call!(expression, new_indent) >>
+       call!(spaces_or_new_line_and_indent, indentation) >>
+       tag!("else") >>
+       call!(spaces_or_new_line_and_indent, indentation) >>
+       else_exp: call!(expression, new_indent) >>
+       (Expression::If(Box::new(test), Box::new(if_exp), Box::new(else_exp)))
+   )
+);
+
+// Binary
+
+named!(operator_or_as<CompleteStr, Expression>,
+  map!(
+    alt!(
+        map!(tag!("as"), |text| text.to_string())
+      | operator
+    ),
+    |op| Expression::Variable(vec![op])
+  )
+);
+
 named_args!(binary(indentation: u32) <CompleteStr, Expression>,
+   // Application followed by possibly a operator + expression
    do_parse!(
      application_or_var: call!(application_or_var, indentation) >>
      operator_exp: opt!(
        do_parse!(
          call!(spaces_or_new_line_and_indent, indentation) >>
-         operator: operator >>
+         operator: operator_or_as >>
          multispace >>
          expression: call!(expression, indentation) >>
          (operator, expression)
@@ -259,7 +304,7 @@ named_args!(binary(indentation: u32) <CompleteStr, Expression>,
      ) >>
      (match operator_exp {
          Some((op, exp)) => Expression::BinOp(
-             Box::new(Expression::Variable(vec![op.to_string()])),
+             Box::new(op),
              Box::new(application_or_var),
              Box::new(exp)
          ),
@@ -273,7 +318,7 @@ named_args!(pub expression(indentation: u32) <CompleteStr, Expression>,
          call!(binary, indentation)
        | call!(let_expression, indentation)
        | call!(case_expression, indentation)
-    // | if_expression
+       | call!(if_expression, indentation)
        | call!(lambda, indentation)
   )
 );
@@ -294,6 +339,14 @@ mod tests {
 
     fn application(a: Expression, b: Expression) -> Expression {
         Expression::Application(Box::new(a), Box::new(b))
+    }
+
+    fn bin_op(op: Expression, left: Expression, right: Expression) -> Expression {
+        Expression::BinOp(Box::new(op), Box::new(left), Box::new(right))
+    }
+
+    fn if_(test: Expression, if_exp: Expression, else_exp: Expression) -> Expression {
+        Expression::If(Box::new(test), Box::new(if_exp), Box::new(else_exp))
     }
 
     // Tuples
@@ -834,6 +887,153 @@ in
                         ),
                         (var("c"), var("c")),
                     ]
+                )
+            ))
+        );
+    }
+
+    // If Expressions
+
+    #[test]
+    fn if_statement() {
+        assert_eq!(
+            if_expression(
+                CompleteStr(
+                    "if a then
+  1
+else 
+  2"
+                ),
+                0
+            ),
+            Ok((CompleteStr(""), if_(var("a"), int("1"), int("2"))))
+        );
+    }
+
+    #[test]
+    fn if_statement_with_tuple() {
+        assert_eq!(
+            if_expression(
+                CompleteStr(
+                    "if (a, b) == (1, 2) then
+  1
+else 
+  2"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                if_(
+                    bin_op(
+                        var("=="),
+                        Expression::Tuple(vec![var("a"), var("b")]),
+                        Expression::Tuple(vec![int("1"), int("2")])
+                    ),
+                    int("1"),
+                    int("2")
+                )
+            ))
+        );
+    }
+
+    // Expressions
+
+    #[test]
+    fn operator_passed_to_map() {
+        assert_eq!(
+            expression(CompleteStr("reduce (+) list"), 0),
+            Ok((
+                CompleteStr(""),
+                application(application(var("reduce"), var("+")), var("list"))
+            ))
+        );
+    }
+
+    #[test]
+    fn partial_application() {
+        assert_eq!(
+            expression(CompleteStr("(+) 2"), 0),
+            Ok((CompleteStr(""), application(var("+"), int("2"))))
+        );
+    }
+
+    #[test]
+    fn case_with_as() {
+        assert_eq!(
+            expression(CompleteStr("case a of \nT _ as x -> 1"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Case(
+                    Box::new(var("a")),
+                    vec![
+                        (
+                            Expression::BinOp(
+                                Box::new(var("as")),
+                                Box::new(application(var("T"), var("_"))),
+                                Box::new(var("x")),
+                            ),
+                            int("1"),
+                        ),
+                    ]
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn lambda_destructuring() {
+        assert_eq!(
+            expression(CompleteStr("\\(a,b) acc -> 1"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Lambda(
+                    vec![Expression::Tuple(vec![var("a"), var("b")]), var("acc")],
+                    Box::new(int("1")),
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn let_block_destructuring() {
+        assert_eq!(
+            expression(CompleteStr("let (a,b) = (1,2) in a"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Let(
+                    vec![
+                        (
+                            Expression::Tuple(vec![var("a"), var("b")]),
+                            Expression::Tuple(vec![int("1"), int("2")]),
+                        ),
+                    ],
+                    Box::new(var("a")),
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn access() {
+        assert_eq!(
+            expression(CompleteStr("Module.a"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Access(Box::new(var("Module")), vec!["a".to_string()])
+            ))
+        );
+    }
+
+    #[test]
+    fn access_function() {
+        assert_eq!(
+            expression(CompleteStr("map .a list"), 0),
+            Ok((
+                CompleteStr(""),
+                application(
+                    application(var("map"), Expression::AccessFunction("a".to_string())),
+                    var("list")
                 )
             ))
         );
