@@ -49,6 +49,10 @@ named!(pub lo_name<CompleteStr, String>,
   ) 
 );
 
+named!(pub function_name<CompleteStr, String>,
+  map!(lo_name, |s| s)
+);
+
 named!(pub up_name<CompleteStr, String>,
   do_parse!(
     start: take_while_m_n!(1, 1, is_uppercase) >>

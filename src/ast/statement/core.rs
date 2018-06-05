@@ -4,7 +4,7 @@ use ast::binop::Assoc;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExportSet {
-    AllExport(Vec<Expression>),
+    AllExport,
     SubsetExport(Vec<ExportSet>),
     FunctionExport(Name),
     TypeExport(Name, Option<Box<ExportSet>>),
