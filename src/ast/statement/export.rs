@@ -1,5 +1,5 @@
+use ast::helpers::{function_name, operator, spaces_and_newlines, up_name};
 use ast::statement::core::ExportSet;
-use ast::helpers::{function_name, operator, up_name};
 
 use nom::types::CompleteStr;
 
@@ -54,7 +54,7 @@ named!(type_export<CompleteStr, ExportSet>,
 named!(subset_export<CompleteStr, ExportSet>,
   map!(
     separated_nonempty_list!(
-      tag!(", "),
+      delimited!(opt!(spaces_and_newlines), char!(','), opt!(spaces_and_newlines)),
       alt!(
           function_export
         | type_export
@@ -78,9 +78,13 @@ named!(pub exports<CompleteStr, ExportSet>,
 #[cfg(test)]
 mod tests {
 
-    use ast::statement::*;
     use ast::statement::core::*;
+    use ast::statement::*;
     use nom::types::CompleteStr;
+
+    fn fexp(name: &str) -> ExportSet {
+        ExportSet::FunctionExport(name.to_string())
+    }
 
     #[test]
     fn simple_all_export() {
@@ -96,10 +100,18 @@ mod tests {
             exports(CompleteStr("(a, b)")),
             Ok((
                 CompleteStr(""),
-                ExportSet::SubsetExport(vec![
-                    ExportSet::FunctionExport("a".to_string()),
-                    ExportSet::FunctionExport("b".to_string()),
-                ])
+                ExportSet::SubsetExport(vec![fexp("a"), fexp("b")])
+            ))
+        );
+    }
+
+    #[test]
+    fn simple_multiline_function_export() {
+        assert_eq!(
+            exports(CompleteStr("(a, b,\nc)")),
+            Ok((
+                CompleteStr(""),
+                ExportSet::SubsetExport(vec![fexp("a"), fexp("b"), fexp("c")])
             ))
         );
     }
@@ -110,10 +122,7 @@ mod tests {
             exports(CompleteStr("((=>), (++))")),
             Ok((
                 CompleteStr(""),
-                ExportSet::SubsetExport(vec![
-                    ExportSet::FunctionExport("=>".to_string()),
-                    ExportSet::FunctionExport("++".to_string()),
-                ])
+                ExportSet::SubsetExport(vec![fexp("=>"), fexp("++")])
             ))
         );
     }
@@ -133,8 +142,8 @@ mod tests {
                     ExportSet::TypeExport(
                         "Sync".to_string(),
                         Some(Box::new(ExportSet::SubsetExport(vec![
-                            ExportSet::FunctionExport("First".to_string()),
-                            ExportSet::FunctionExport("Last".to_string()),
+                            fexp("First"),
+                            fexp("Last"),
                         ]))),
                     ),
                 ])

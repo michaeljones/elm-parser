@@ -53,6 +53,17 @@ named!(pub function_name<CompleteStr, String>,
   map!(lo_name, |s| s)
 );
 
+named!(pub module_name<CompleteStr, ModuleName>,
+  delimited!(
+    spaces,
+    separated_nonempty_list!(
+      char!('.'),
+      up_name
+    ),
+    spaces
+  )
+);
+
 named!(pub up_name<CompleteStr, String>,
   do_parse!(
     start: take_while_m_n!(1, 1, is_uppercase) >>
@@ -102,6 +113,10 @@ fn exactly(spaces: CompleteStr, indentation: u32) -> Result<u32, String> {
 
 named!(pub spaces <CompleteStr, String>,
   map!(is_a!(" "), |s| s.to_string())
+);
+
+named!(pub spaces_and_newlines <CompleteStr, String>,
+  map!(is_a!(" \n"), |s| s.to_string())
 );
 
 named_args!(pub exactly_indent(indentation: u32) <CompleteStr, u32>,
