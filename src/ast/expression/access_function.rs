@@ -1,8 +1,7 @@
 use nom::types::CompleteStr;
 
-use ast::helpers::lo_name;
 use ast::expression::core::Expression;
-use ast::expression::variable::variable;
+use ast::helpers::lo_name;
 
 named!(pub access_function<CompleteStr, Expression>,
     do_parse!(

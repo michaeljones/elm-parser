@@ -100,6 +100,10 @@ fn exactly(spaces: CompleteStr, indentation: u32) -> Result<u32, String> {
     }
 }
 
+named!(pub spaces <CompleteStr, String>,
+  map!(is_a!(" "), |s| s.to_string())
+);
+
 named_args!(pub exactly_indent(indentation: u32) <CompleteStr, u32>,
   map_res!(is_a!(" "), |s| exactly(s, indentation))
 );
