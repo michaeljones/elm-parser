@@ -1,4 +1,4 @@
-use ast::helpers::{lo_name, module_name, spaces, up_name, Name};
+use ast::helpers::{lo_name, module_name, spaces, up_name};
 use ast::statement::core::Statement;
 use ast::statement::export::exports;
 
@@ -9,7 +9,9 @@ named!(pub port_module_declaration<CompleteStr, Statement>,
     tag!("port") >>
     spaces >>
     tag!("module") >>
+    spaces >>
     name: module_name >>
+    spaces >>
     tag!("exposing") >>
     spaces >>
     exports: exports >>
@@ -22,7 +24,9 @@ named!(pub effect_module_declaration<CompleteStr, Statement>,
     tag!("effect") >>
     spaces >>
     tag!("module") >>
+    spaces >>
     name: module_name >>
+    spaces >>
     tag!("where") >>
     spaces >>
     where_: delimited!(
@@ -51,7 +55,9 @@ named!(pub effect_module_declaration<CompleteStr, Statement>,
 named!(pub module_declaration<CompleteStr, Statement>,
   do_parse!(
     tag!("module") >>
+    spaces >>
     name: module_name >>
+    spaces >>
     tag!("exposing") >>
     spaces >>
     exports: exports >>

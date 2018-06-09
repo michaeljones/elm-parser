@@ -54,13 +54,9 @@ named!(pub function_name<CompleteStr, String>,
 );
 
 named!(pub module_name<CompleteStr, ModuleName>,
-  delimited!(
-    spaces,
-    separated_nonempty_list!(
-      char!('.'),
-      up_name
-    ),
-    spaces
+  separated_nonempty_list!(
+    char!('.'),
+    up_name
   )
 );
 
