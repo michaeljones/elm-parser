@@ -21,7 +21,7 @@ named!(type_tuple<CompleteStr, Type>,
   map!(
     delimited!(
       char!('('),
-      separated_nonempty_list!(
+      separated_list!(
         tag!(", "),
         type_
       ),
@@ -41,7 +41,7 @@ named!(type_record_pair<CompleteStr, (Name, Type)>,
 );
 
 named!(type_record_pairs<CompleteStr, Vec<(Name, Type)>>,
-  separated_nonempty_list!(
+  separated_list!(
     tag!(", "),
     type_record_pair
   )
@@ -84,18 +84,18 @@ named!(type_parameter<CompleteStr, Type>,
   )
 );
 
-named!(type_constructor<CompleteStr, Type>,
+named!(pub type_constructor<CompleteStr, Type>,
   do_parse!(
     first: separated_nonempty_list!(
       char!('.'),
       up_name
     ) >>
-    second: opt!(preceded!(spaces, many0!(type_parameter))) >>
+    second: opt!(many0!(preceded!(spaces, type_parameter))) >>
     (Type::TypeConstructor(first, second.unwrap_or(vec![])))
   )
 );
 
-named!(type_<CompleteStr, Type>,
+named!(pub type_<CompleteStr, Type>,
   alt!(
       type_constructor
     | type_variable
@@ -106,7 +106,7 @@ named!(type_<CompleteStr, Type>,
   )
 );
 
-named!(type_annotation<CompleteStr, Type>,
+named!(pub type_annotation<CompleteStr, Type>,
   map_res!(
     separated_nonempty_list!(
       tag!(" -> "),
@@ -177,6 +177,22 @@ mod tests {
         assert_eq!(
             type_annotation(CompleteStr("a1")),
             Ok((CompleteStr(""), tvar("a1")))
+        );
+    }
+
+    #[test]
+    fn empty_record() {
+        assert_eq!(
+            type_annotation(CompleteStr("{}")),
+            Ok((CompleteStr(""), Type::TypeRecord(vec![])))
+        );
+    }
+
+    #[test]
+    fn empty_tuple() {
+        assert_eq!(
+            type_annotation(CompleteStr("()")),
+            Ok((CompleteStr(""), Type::TypeTuple(vec![])))
         );
     }
 
