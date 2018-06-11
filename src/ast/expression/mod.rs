@@ -1,26 +1,26 @@
-mod character;
-mod string;
-mod float;
-mod integer;
 mod access;
 mod access_function;
-mod variable;
+mod character;
 mod core;
+mod float;
+mod integer;
+mod string;
+mod variable;
 
 pub use ast::expression::core::Expression;
 
-use ast::expression::character::character;
-use ast::expression::string::string;
-use ast::expression::float::float;
-use ast::expression::integer::integer;
-use ast::expression::variable::variable;
 use ast::expression::access::access;
 use ast::expression::access_function::access_function;
+use ast::expression::character::character;
+use ast::expression::float::float;
+use ast::expression::integer::integer;
+use ast::expression::string::string;
+use ast::expression::variable::variable;
 use ast::helpers::{lo_name, new_line_and_exact_indent, operator, spaces_or_new_line_and_indent};
 
 // use nom;
-use nom::{multispace, multispace0, space1};
 use nom::types::CompleteStr;
+use nom::{multispace, multispace0, space1};
 
 named_args!(tuple(indentation: u32) <CompleteStr, Expression>,
   map!(
@@ -141,7 +141,7 @@ named_args!(parens(indentation: u32) <CompleteStr, Expression>,
 
 // Term
 
-named_args!(term(indentation: u32) <CompleteStr, Expression>,
+named_args!(pub term(indentation: u32) <CompleteStr, Expression>,
   alt!(
       access
     | variable
@@ -722,16 +722,14 @@ in
             Ok((
                 CompleteStr(""),
                 Expression::Let(
-                    vec![
-                        (
-                            application(var("f"), var("x")),
-                            Expression::BinOp(
-                                Box::new(var("+")),
-                                Box::new(var("x")),
-                                Box::new(int("1")),
-                            ),
+                    vec![(
+                        application(var("f"), var("x")),
+                        Expression::BinOp(
+                            Box::new(var("+")),
+                            Box::new(var("x")),
+                            Box::new(int("1")),
                         ),
-                    ],
+                    )],
                     Box::new(application(var("f"), int("4")))
                 )
             ))
@@ -966,16 +964,14 @@ else
                 CompleteStr(""),
                 Expression::Case(
                     Box::new(var("a")),
-                    vec![
-                        (
-                            Expression::BinOp(
-                                Box::new(var("as")),
-                                Box::new(application(var("T"), var("_"))),
-                                Box::new(var("x")),
-                            ),
-                            int("1"),
+                    vec![(
+                        Expression::BinOp(
+                            Box::new(var("as")),
+                            Box::new(application(var("T"), var("_"))),
+                            Box::new(var("x")),
                         ),
-                    ]
+                        int("1"),
+                    )]
                 )
             ))
         );
@@ -1002,12 +998,10 @@ else
             Ok((
                 CompleteStr(""),
                 Expression::Let(
-                    vec![
-                        (
-                            Expression::Tuple(vec![var("a"), var("b")]),
-                            Expression::Tuple(vec![int("1"), int("2")]),
-                        ),
-                    ],
+                    vec![(
+                        Expression::Tuple(vec![var("a"), var("b")]),
+                        Expression::Tuple(vec![int("1"), int("2")]),
+                    )],
                     Box::new(var("a")),
                 )
             ))

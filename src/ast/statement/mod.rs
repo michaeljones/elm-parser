@@ -1,5 +1,6 @@
 mod core;
 mod export;
+mod function;
 mod import;
 mod module;
 mod port;

@@ -1,4 +1,4 @@
-use ast::helpers::{lo_name, spaces, up_name, Name};
+use ast::helpers::{lo_name, spaces, spaces_and_newlines, up_name, Name};
 use ast::statement::core::Type;
 
 use nom::types::CompleteStr;
@@ -109,7 +109,7 @@ named!(pub type_<CompleteStr, Type>,
 named!(pub type_annotation<CompleteStr, Type>,
   map_res!(
     separated_nonempty_list!(
-      tag!(" -> "),
+      delimited!(spaces_and_newlines, tag!("->"), spaces_and_newlines),
       type_
     ),
     |mut v: Vec<Type>| {
