@@ -1,8 +1,6 @@
 use ast::binop::Assoc;
-use ast::expression::{expression, term};
-use ast::helpers::{lo_name, operator, spaces, spaces_and_newlines};
+use ast::helpers::{lo_name, operator, spaces};
 use ast::statement::core::Statement;
-use ast::statement::type_::{type_, type_annotation, type_constructor};
 
 use nom::digit;
 use nom::types::CompleteStr;
@@ -28,7 +26,6 @@ named!(pub infix_declaration<CompleteStr, Statement>,
 #[cfg(test)]
 mod tests {
 
-    use ast::expression::Expression;
     use ast::statement::core::*;
     use ast::statement::infix::*;
     use nom::types::CompleteStr;

@@ -1,7 +1,4 @@
-use ast::expression::{expression, term};
-use ast::helpers::{lo_name, operator, spaces, spaces_and_newlines};
 use ast::statement::core::Statement;
-use ast::statement::type_::{type_, type_annotation, type_constructor};
 
 use nom::types::CompleteStr;
 
@@ -32,7 +29,6 @@ named!(pub comment<CompleteStr, Statement>,
 #[cfg(test)]
 mod tests {
 
-    use ast::expression::Expression;
     use ast::statement::comment::*;
     use ast::statement::core::*;
     use nom::types::CompleteStr;

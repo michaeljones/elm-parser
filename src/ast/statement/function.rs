@@ -1,7 +1,7 @@
 use ast::expression::{expression, term};
 use ast::helpers::{lo_name, operator, spaces, spaces_and_newlines};
 use ast::statement::core::Statement;
-use ast::statement::type_::{type_, type_annotation, type_constructor};
+use ast::statement::type_::type_annotation;
 
 use nom::types::CompleteStr;
 
@@ -52,14 +52,6 @@ mod tests {
 
     fn int(text: &str) -> Expression {
         Expression::Integer(text.to_string())
-    }
-
-    fn bin_op(op: Expression, left: Expression, right: Expression) -> Expression {
-        Expression::BinOp(Box::new(op), Box::new(left), Box::new(right))
-    }
-
-    fn tvar(name: &str) -> Type {
-        Type::TypeVariable(name.to_string())
     }
 
     fn tapp(a: Type, b: Type) -> Type {

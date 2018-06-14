@@ -1,7 +1,7 @@
 use ast::expression::expression;
 use ast::helpers::{lo_name, spaces, spaces_and_newlines};
 use ast::statement::core::Statement;
-use ast::statement::type_::{type_, type_annotation, type_constructor};
+use ast::statement::type_::type_annotation;
 
 use nom::types::CompleteStr;
 

@@ -78,8 +78,8 @@ named!(pub exports<CompleteStr, ExportSet>,
 #[cfg(test)]
 mod tests {
 
-    use ast::statement::core::*;
-    use ast::statement::*;
+    use ast::statement::core::ExportSet;
+    use ast::statement::export::exports;
     use nom::types::CompleteStr;
 
     fn fexp(name: &str) -> ExportSet {
