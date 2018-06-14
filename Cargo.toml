@@ -3,6 +3,10 @@ name = "elm-parser"
 version = "0.1.0"
 authors = ["Michael Jones <michael@zaptic.com>"]
 
+[[bin]]
+name = "elm-parser-dump"
+path = "src/dump.rs"
+
 [dependencies]
 nom = { version = "4.0.0", features = ["regexp", "verbose-errors"] }
 # nom = { git = "https://github.com/geal/nom", features = ["verbose-errors"] }
