@@ -1,3 +1,4 @@
+mod comment;
 mod core;
 mod export;
 mod function;
