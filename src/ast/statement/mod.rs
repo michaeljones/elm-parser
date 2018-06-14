@@ -3,6 +3,7 @@ mod core;
 mod export;
 mod function;
 mod import;
+mod infix;
 mod module;
 mod port;
 mod type_;

@@ -32,6 +32,6 @@ pub enum Statement {
     PortDeclaration(Name, Vec<Name>, Expression),
     FunctionTypeDeclaration(Name, Type),
     FunctionDeclaration(Name, Vec<Expression>, Expression),
-    InfixDeclaratiok(Assoc, i64, Name),
+    InfixDeclaration(Assoc, i64, Name),
     Comment(String),
 }

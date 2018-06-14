@@ -70,7 +70,8 @@ named!(pub up_name<CompleteStr, String>,
 
 named!(pub operator<CompleteStr, String>,
   map_res!(
-    map!(re_matches!(r"^([+\\-\\/*=.$<>:&|^?%#@~!]+)"), |c| c[0].to_string()),
+    // Regex from elm-ast with extra '-' at the start as it was failing
+    map!(re_matches!(r"^([-+\\-\\/*=.$<>:&|^?%#@~!]+)"), |c| c[0].to_string()),
     |op: String| {
         if RESERVED_OPERATORS.contains(&op.as_str()) {
             Err("Reserved operator: ".to_string() + &op)
@@ -149,6 +150,14 @@ mod tests {
         assert_eq!(
             operator(CompleteStr("==")),
             Ok((CompleteStr(""), "==".to_string()))
+        );
+    }
+
+    #[test]
+    fn another_simple_operator() {
+        assert_eq!(
+            operator(CompleteStr(":-")),
+            Ok((CompleteStr(""), ":-".to_string()))
         );
     }
 
