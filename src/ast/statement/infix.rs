@@ -16,8 +16,8 @@ named!(pub infix_declaration<CompleteStr, Statement>,
     value: map_res!(digit, |s: CompleteStr| s.to_string().parse::<i64>()) >>
     spaces >>
     name: alt!(
-        dbg!(lo_name)
-      | dbg!(operator)
+        lo_name
+      | operator
     ) >>
     (Statement::InfixDeclaration(type_, value, name))
   )
