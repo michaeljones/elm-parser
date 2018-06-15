@@ -31,7 +31,7 @@ There is an `elm-parser-dump` command that will pretty print the generated AST
 for any file that you give it as an argument:
 
 ```
-cargo run elm-parser-dump examples/Basic.elm
+cargo run examples/Basic.elm
 ```
 
 
