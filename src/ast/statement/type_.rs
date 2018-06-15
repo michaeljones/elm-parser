@@ -21,12 +21,16 @@ named!(type_constant<CompleteStr, Type>,
 named_args!(type_tuple(indentation: u32)<CompleteStr, Type>,
   map!(
     delimited!(
-      char!('('),
+      preceded!(char!('('), opt!(call!(spaces_or_new_line_and_indent, indentation))),
       separated_list!(
-        tag!(", "),
+        delimited!(
+            opt!(call!(spaces_or_new_line_and_indent, indentation)),
+            char!(','),
+            opt!(call!(spaces_or_new_line_and_indent, indentation))
+        ),
         call!(type_, indentation)
       ),
-      char!(')')
+      terminated!(opt!(call!(spaces_or_new_line_and_indent, indentation)), char!(')'))
     ),
     |v| Type::TypeTuple(v)
   )
@@ -257,6 +261,23 @@ mod tests {
                     ("a".to_string(), tcon("String", vec![])),
                     ("b".to_string(), tcon("String", vec![])),
                 ])
+            ))
+        );
+    }
+
+    #[test]
+    fn list_of_tuples() {
+        assert_eq!(
+            type_annotation(CompleteStr("List ( String, String )"), 0),
+            Ok((
+                CompleteStr(""),
+                tcon(
+                    "List",
+                    vec![Type::TypeTuple(vec![
+                        tcon("String", vec![]),
+                        tcon("String", vec![]),
+                    ])]
+                )
             ))
         );
     }
