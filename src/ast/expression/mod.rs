@@ -43,19 +43,19 @@ named_args!(tuple(indentation: u32) <CompleteStr, Expression>,
 named_args!(list(indentation: u32) <CompleteStr, Expression>,
   map!(
     delimited!(
-        char!('['),
+        preceded!(char!('['), opt!(call!(spaces_or_new_line_and_indent, indentation))),
         // Not sure why this optional is required
         opt!(
             separated_list!(
-                char!(','),
                 delimited!(
-                    multispace0,
-                    call!(expression, indentation),
-                    multispace0
-                )
+                    opt!(call!(spaces_or_new_line_and_indent, indentation)),
+                    char!(','),
+                    opt!(call!(spaces_or_new_line_and_indent, indentation))
+                ),
+                call!(expression, indentation)
             )
         ),
-        char!(']')
+        terminated!(opt!(call!(spaces_or_new_line_and_indent, indentation)), char!(']'))
     ),
     |o| Expression::List(o.unwrap_or(vec![]))
   )
@@ -64,21 +64,24 @@ named_args!(list(indentation: u32) <CompleteStr, Expression>,
 named_args!(record(indentation: u32) <CompleteStr, Expression>,
   map!(
     delimited!(
-        char!('{'),
+        preceded!(char!('{'), opt!(call!(spaces_or_new_line_and_indent, indentation))),
         separated_list!(
-            char!(','),
-            do_parse!(
-                multispace0 >>
-                name: lo_name >>
-                multispace0 >>
-                char!('=') >>
-                multispace0 >>
-                expression: call!(expression, indentation) >>
-                multispace0 >>
-                ((name, expression))
+            delimited!(
+                opt!(call!(spaces_or_new_line_and_indent, indentation)),
+                char!(','),
+                opt!(call!(spaces_or_new_line_and_indent, indentation))
+            ),
+            separated_pair!(
+                lo_name,
+                delimited!(
+                    opt!(call!(spaces_or_new_line_and_indent, indentation)),
+                    char!('='),
+                    opt!(call!(spaces_or_new_line_and_indent, indentation))
+                ),
+                call!(expression, indentation)
             )
         ),
-        char!('}')
+        terminated!(opt!(call!(spaces_or_new_line_and_indent, indentation)), char!('}'))
     ),
     Expression::Record
   )
