@@ -9,7 +9,7 @@ use std::io::prelude::*;
 
 mod ast;
 
-use ast::statement::statements;
+use ast::file;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -21,7 +21,7 @@ fn main() {
     f.read_to_string(&mut contents)
         .expect("something went wrong reading the file");
 
-    let result = statements(CompleteStr(&contents));
+    let result = file(CompleteStr(&contents));
 
     match result {
         Ok((_, ast)) => println!("{:#?}", ast),

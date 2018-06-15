@@ -13,7 +13,7 @@ mod type_;
 mod type_declaration;
 
 use ast::statement::comment::comment;
-use ast::statement::core::Statement;
+pub use ast::statement::core::Statement;
 use ast::statement::function::{function_declaration, function_type_declaration};
 use ast::statement::import::import_statement;
 use ast::statement::infix::infix_declaration;
