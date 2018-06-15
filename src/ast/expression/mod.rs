@@ -402,6 +402,21 @@ mod tests {
     }
 
     #[test]
+    fn multi_line_list() {
+        assert_eq!(
+            list(
+                CompleteStr(
+                    "[ 1
+                     , 2
+                     ]"
+                ),
+                0
+            ),
+            Ok((CompleteStr(""), Expression::List(vec![int("1"), int("2")])))
+        );
+    }
+
+    #[test]
     fn tuple_list() {
         assert_eq!(
             list(CompleteStr("[(a, b), (a, b)]"), 0),
@@ -819,6 +834,33 @@ in
                     "case x of
   Nothing ->
     0
+  Just y ->
+    y"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Expression::Case(
+                    Box::new(var("x")),
+                    vec![
+                        (var("Nothing"), int("0")),
+                        (application(var("Just"), var("y")), var("y")),
+                    ],
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn case_simple_statement_with_blank_line() {
+        assert_eq!(
+            case_expression(
+                CompleteStr(
+                    "case x of
+  Nothing ->
+    0
+
   Just y ->
     y"
                 ),

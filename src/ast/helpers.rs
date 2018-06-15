@@ -120,9 +120,9 @@ named_args!(pub exactly_indent(indentation: u32) <CompleteStr, u32>,
   map_res!(is_a!(" "), |s| exactly(s, indentation))
 );
 
-named_args!(pub new_line_and_exact_indent(indentation: u32) <CompleteStr, (char, u32)>, 
-    tuple!(
-        char!('\n'),
+named_args!(pub new_line_and_exact_indent(indentation: u32) <CompleteStr, u32>,
+    preceded!(
+        re_matches!(r"^[ \n]*\n"),
         call!(exactly_indent, indentation)
     )
 );
