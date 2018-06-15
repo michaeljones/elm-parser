@@ -1,20 +1,20 @@
-use ast::helpers::{spaces, spaces_and_newlines};
+use ast::helpers::{spaces, spaces_and_newlines, spaces_or_new_line_and_indent};
 use ast::statement::core::Statement;
 use ast::statement::type_::{type_, type_annotation, type_constructor};
 
 use nom::types::CompleteStr;
 
-named_args!(pub type_alias_declaration(indentation: u32)<CompleteStr, Statement>,
+named!(pub type_alias_declaration<CompleteStr, Statement>,
   do_parse!(
     tag!("type") >>
     spaces >>
     tag!("alias") >>
     spaces >>
-    name: call!(type_, indentation) >>
+    name: call!(type_, 0) >>
     spaces >>
     char!('=') >>
-    spaces_and_newlines >>
-    declaration: call!(type_annotation, indentation) >>
+    call!(spaces_or_new_line_and_indent, 1) >>
+    declaration: call!(type_annotation, 1) >>
     (Statement::TypeAliasDeclaration(name, declaration))
   )
 );
@@ -42,10 +42,14 @@ mod tests {
     use ast::statement::type_declaration::*;
     use nom::types::CompleteStr;
 
+    fn tcon(name: &str, v: Vec<Type>) -> Type {
+        Type::TypeConstructor(vec![name.to_string()], v)
+    }
+
     #[test]
     fn can_parse_empty_record_aliases() {
         assert_eq!(
-            type_alias_declaration(CompleteStr("type alias A = {}"), 0),
+            type_alias_declaration(CompleteStr("type alias A = {}")),
             Ok((
                 CompleteStr(""),
                 Statement::TypeAliasDeclaration(
@@ -59,12 +63,68 @@ mod tests {
     #[test]
     fn can_parse_aliases_of_unit() {
         assert_eq!(
-            type_alias_declaration(CompleteStr("type alias A = ()"), 0),
+            type_alias_declaration(CompleteStr("type alias A = ()")),
             Ok((
                 CompleteStr(""),
                 Statement::TypeAliasDeclaration(
                     Type::TypeConstructor(vec!["A".to_string()], vec![]),
                     Type::TypeTuple(vec![])
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn multi_line_record() {
+        assert_eq!(
+            type_alias_declaration(CompleteStr(
+                "type alias A =\n { a : String\n , b : String\n }"
+            )),
+            Ok((
+                CompleteStr(""),
+                Statement::TypeAliasDeclaration(
+                    Type::TypeConstructor(vec!["A".to_string()], vec![]),
+                    Type::TypeRecord(vec![
+                        (
+                            "a".to_string(),
+                            Type::TypeConstructor(vec!["String".to_string()], vec![]),
+                        ),
+                        (
+                            "b".to_string(),
+                            Type::TypeConstructor(vec!["String".to_string()], vec![]),
+                        ),
+                    ])
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn multi_line_record_with_tuple_list() {
+        assert_eq!(
+            type_alias_declaration(CompleteStr(
+                "type alias A =\n { a : String\n , b : List ( String, String )\n }"
+            )),
+            Ok((
+                CompleteStr(""),
+                Statement::TypeAliasDeclaration(
+                    Type::TypeConstructor(vec!["A".to_string()], vec![]),
+                    Type::TypeRecord(vec![
+                        (
+                            "a".to_string(),
+                            Type::TypeConstructor(vec!["String".to_string()], vec![]),
+                        ),
+                        (
+                            "b".to_string(),
+                            Type::TypeConstructor(
+                                vec!["List".to_string()],
+                                vec![Type::TypeTuple(vec![
+                                    tcon("String", vec![]),
+                                    tcon("String", vec![]),
+                                ])],
+                            ),
+                        ),
+                    ])
                 )
             ))
         );

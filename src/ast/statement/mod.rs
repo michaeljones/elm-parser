@@ -28,7 +28,7 @@ named!(pub statement<CompleteStr, Statement>,
     | effect_module_declaration
     | module_declaration
     | import_statement
-    | call!(type_alias_declaration, 0)
+    | type_alias_declaration
     | call!(type_declaration, 0)
     | call!(port_type_declaration, 0)
     | port_declaration
