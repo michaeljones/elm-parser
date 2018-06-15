@@ -32,12 +32,9 @@ named!(pub lo_name<CompleteStr, String>,
   alt!(
       map!(tag!("_"), |v| v.to_string())
     | map_res!(
-        do_parse!(
-          start: take_while_m_n!(1, 1, is_lowercase) >>
-          rest: map!(alphanumeric0, |v| v.to_string()) >>
-          (start.to_string() + &rest)
-        ),
-        |name: String| {
+        re_matches!(r"^([a-z][a-zA-Z0-9_]*)"),
+        |v: Vec<CompleteStr>| {
+            let name = v[0].to_string();
             if RESERVED_WORDS.contains(&name.as_str()) {
                 Err("Reserved word: ".to_string() + &name)
             }
