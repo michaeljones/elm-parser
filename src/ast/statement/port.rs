@@ -5,7 +5,7 @@ use ast::statement::type_::type_annotation;
 
 use nom::types::CompleteStr;
 
-named!(pub port_type_declaration<CompleteStr, Statement>,
+named_args!(pub port_type_declaration(indentation: u32)<CompleteStr, Statement>,
   do_parse!(
     tag!("port") >>
     spaces >>
@@ -13,7 +13,7 @@ named!(pub port_type_declaration<CompleteStr, Statement>,
     spaces >>
     char!(':') >>
     spaces_and_newlines >>
-    type_: type_annotation >>
+    type_: call!(type_annotation, 0) >>
     (Statement::PortTypeDeclaration(name, type_))
   )
 );
@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn constant() {
         assert_eq!(
-            port_type_declaration(CompleteStr("port focus : String -> Cmd msg")),
+            port_type_declaration(CompleteStr("port focus : String -> Cmd msg"), 0),
             Ok((
                 CompleteStr(""),
                 Statement::PortTypeDeclaration(
@@ -69,7 +69,7 @@ mod tests {
     #[test]
     fn another_port_type_declaration() {
         assert_eq!(
-            port_type_declaration(CompleteStr("port users : (User -> msg) -> Sub msg")),
+            port_type_declaration(CompleteStr("port users : (User -> msg) -> Sub msg"), 0),
             Ok((
                 CompleteStr(""),
                 Statement::PortTypeDeclaration(

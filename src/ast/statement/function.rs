@@ -1,11 +1,11 @@
 use ast::expression::{expression, term};
-use ast::helpers::{lo_name, operator, spaces, spaces_and_newlines};
+use ast::helpers::{lo_name, operator, spaces, spaces_and_newlines, spaces_or_new_line_and_indent};
 use ast::statement::core::Statement;
 use ast::statement::type_::type_annotation;
 
 use nom::types::CompleteStr;
 
-named!(pub function_type_declaration<CompleteStr, Statement>,
+named_args!(pub function_type_declaration(indentation: u32)<CompleteStr, Statement>,
   do_parse!(
     name: alt!(
         lo_name
@@ -13,8 +13,8 @@ named!(pub function_type_declaration<CompleteStr, Statement>,
     ) >>
     spaces >>
     char!(':') >>
-    spaces >>
-    type_: type_annotation >>
+    call!(spaces_or_new_line_and_indent, indentation + 1) >>
+    type_: call!(type_annotation, indentation + 1) >>
     (Statement::FunctionTypeDeclaration(name, type_))
   )
 );
@@ -65,7 +65,7 @@ mod tests {
     #[test]
     fn simple_function_type() {
         assert_eq!(
-            function_type_declaration(CompleteStr("f : Int -> Int")),
+            function_type_declaration(CompleteStr("f : Int -> Int"), 0),
             Ok((
                 CompleteStr(""),
                 Statement::FunctionTypeDeclaration(
@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn simple_function_type_with_new_line() {
         assert_eq!(
-            function_type_declaration(CompleteStr("f : Int ->\n  Int")),
+            function_type_declaration(CompleteStr("f : Int ->\n  Int"), 0),
             Ok((
                 CompleteStr(""),
                 Statement::FunctionTypeDeclaration(
@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn function_type_with_tuple() {
         assert_eq!(
-            function_type_declaration(CompleteStr("h : (Int, Int) -> Int")),
+            function_type_declaration(CompleteStr("h : (Int, Int) -> Int"), 0),
             Ok((
                 CompleteStr(""),
                 Statement::FunctionTypeDeclaration(
@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn function_type_with_operator() {
         assert_eq!(
-            function_type_declaration(CompleteStr("(+) : Int -> Int")),
+            function_type_declaration(CompleteStr("(+) : Int -> Int"), 0),
             Ok((
                 CompleteStr(""),
                 Statement::FunctionTypeDeclaration(
@@ -170,4 +170,44 @@ mod tests {
             ))
         );
     }
+
+    #[test]
+    fn multi_line_function_type() {
+        assert_eq!(
+            function_type_declaration(
+                CompleteStr(
+                    "cssm :
+    CssModules.Helpers
+        { a : String
+        , b : String
+        }
+        msg"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Statement::FunctionTypeDeclaration(
+                    "cssm".to_string(),
+                    Type::TypeConstructor(
+                        vec!["CssModules".to_string(), "Helpers".to_string()],
+                        vec![
+                            Type::TypeRecord(vec![
+                                (
+                                    "a".to_string(),
+                                    Type::TypeConstructor(vec!["String".to_string()], vec![]),
+                                ),
+                                (
+                                    "b".to_string(),
+                                    Type::TypeConstructor(vec!["String".to_string()], vec![]),
+                                ),
+                            ]),
+                            Type::TypeVariable("msg".to_string()),
+                        ]
+                    )
+                )
+            ))
+        );
+    }
+
 }

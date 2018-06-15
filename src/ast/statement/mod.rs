@@ -28,11 +28,11 @@ named!(pub statement<CompleteStr, Statement>,
     | effect_module_declaration
     | module_declaration
     | import_statement
-    | type_alias_declaration
-    | type_declaration
-    | port_type_declaration
+    | call!(type_alias_declaration, 0)
+    | call!(type_declaration, 0)
+    | call!(port_type_declaration, 0)
     | port_declaration
-    | function_type_declaration
+    | call!(function_type_declaration, 0)
     | function_declaration
     | infix_declaration
     | comment

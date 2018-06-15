@@ -4,32 +4,32 @@ use ast::statement::type_::{type_, type_annotation, type_constructor};
 
 use nom::types::CompleteStr;
 
-named!(pub type_alias_declaration<CompleteStr, Statement>,
+named_args!(pub type_alias_declaration(indentation: u32)<CompleteStr, Statement>,
   do_parse!(
     tag!("type") >>
     spaces >>
     tag!("alias") >>
     spaces >>
-    name: type_ >>
+    name: call!(type_, indentation) >>
     spaces >>
     char!('=') >>
     spaces_and_newlines >>
-    declaration: type_annotation >>
+    declaration: call!(type_annotation, indentation) >>
     (Statement::TypeAliasDeclaration(name, declaration))
   )
 );
 
-named!(pub type_declaration<CompleteStr, Statement>,
+named_args!(pub type_declaration(indentation: u32)<CompleteStr, Statement>,
   do_parse!(
     tag!("type") >>
     spaces >>
-    name: type_ >>
+    name: call!(type_, indentation) >>
     spaces >>
     char!('=') >>
     spaces_and_newlines >>
     definition: separated_nonempty_list!(
       delimited!(spaces_and_newlines, char!('|'), spaces),
-      type_constructor
+      call!(type_constructor, indentation)
     ) >>
     (Statement::TypeDeclaration(name, definition))
   )
@@ -45,7 +45,7 @@ mod tests {
     #[test]
     fn can_parse_empty_record_aliases() {
         assert_eq!(
-            type_alias_declaration(CompleteStr("type alias A = {}")),
+            type_alias_declaration(CompleteStr("type alias A = {}"), 0),
             Ok((
                 CompleteStr(""),
                 Statement::TypeAliasDeclaration(
@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn can_parse_aliases_of_unit() {
         assert_eq!(
-            type_alias_declaration(CompleteStr("type alias A = ()")),
+            type_alias_declaration(CompleteStr("type alias A = ()"), 0),
             Ok((
                 CompleteStr(""),
                 Statement::TypeAliasDeclaration(
@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn can_parse_simple_type_declaration() {
         assert_eq!(
-            type_declaration(CompleteStr("type A = A")),
+            type_declaration(CompleteStr("type A = A"), 0),
             Ok((
                 CompleteStr(""),
                 Statement::TypeDeclaration(
@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn can_parse_multi_type_declaration() {
         assert_eq!(
-            type_declaration(CompleteStr("type A = A | B | C")),
+            type_declaration(CompleteStr("type A = A | B | C"), 0),
             Ok((
                 CompleteStr(""),
                 Statement::TypeDeclaration(
@@ -105,7 +105,7 @@ mod tests {
     #[test]
     fn can_parse_multiline_type_declaration() {
         assert_eq!(
-            type_declaration(CompleteStr("type A = A | B\n| C\n| D")),
+            type_declaration(CompleteStr("type A = A | B\n| C\n| D"), 0),
             Ok((
                 CompleteStr(""),
                 Statement::TypeDeclaration(

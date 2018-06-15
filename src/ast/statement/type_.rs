@@ -1,4 +1,5 @@
-use ast::helpers::{lo_name, spaces, spaces_and_newlines, up_name, Name};
+use ast::helpers::{lo_name, spaces, spaces_and_newlines, spaces_or_new_line_and_indent, up_name,
+                   Name};
 use ast::statement::core::Type;
 
 use nom::types::CompleteStr;
@@ -17,13 +18,13 @@ named!(type_constant<CompleteStr, Type>,
   )
 );
 
-named!(type_tuple<CompleteStr, Type>,
+named_args!(type_tuple(indentation: u32)<CompleteStr, Type>,
   map!(
     delimited!(
       char!('('),
       separated_list!(
         tag!(", "),
-        type_
+        call!(type_, indentation)
       ),
       char!(')')
     ),
@@ -31,23 +32,29 @@ named!(type_tuple<CompleteStr, Type>,
   )
 );
 
-named!(type_record_pair<CompleteStr, (Name, Type)>,
+named_args!(type_record_pair(indentation: u32)<CompleteStr, (Name, Type)>,
   do_parse!(
     name: lo_name >>
+    opt!(call!(spaces_or_new_line_and_indent, indentation)) >>
     char!(':') >>
-    type_annotation: type_annotation >>
+    opt!(call!(spaces_or_new_line_and_indent, indentation)) >>
+    type_annotation: call!(type_annotation, indentation) >>
     ((name, type_annotation))
   )
 );
 
-named!(type_record_pairs<CompleteStr, Vec<(Name, Type)>>,
+named_args!(type_record_pairs(indentation: u32)<CompleteStr, Vec<(Name, Type)>>,
   separated_list!(
-    tag!(", "),
-    type_record_pair
+    delimited!(
+        opt!(call!(spaces_or_new_line_and_indent, indentation)),
+        char!(','),
+        opt!(call!(spaces_or_new_line_and_indent, indentation))
+    ),
+    call!(type_record_pair, indentation)
   )
 );
 
-named!(type_record_constructor<CompleteStr, Type>,
+named_args!(type_record_constructor(indentation: u32)<CompleteStr, Type>,
   delimited!(
     char!('{'),
     do_parse!(
@@ -55,62 +62,69 @@ named!(type_record_constructor<CompleteStr, Type>,
       var: type_variable >>
       spaces >>
       char!('|') >>
-      record_pairs: type_record_pairs >>
+      record_pairs: call!(type_record_pairs, indentation) >>
       (Type::TypeRecordConstructor(Box::new(var), record_pairs))
     ),
     char!('}')
   )
 );
 
-named!(type_record<CompleteStr, Type>,
+named_args!(type_record(indentation: u32)<CompleteStr, Type>,
   delimited!(
-    char!('{'),
+    preceded!(char!('{'), opt!(call!(spaces_or_new_line_and_indent, indentation))),
     map!(
-      type_record_pairs,
+      call!(type_record_pairs, indentation),
       Type::TypeRecord
     ),
-    char!('}')
+    terminated!(opt!(call!(spaces_or_new_line_and_indent, indentation)), char!('}'))
   )
 );
 
-named!(type_parameter<CompleteStr, Type>,
+named_args!(type_parameter(indentation: u32)<CompleteStr, Type>,
   alt!(
       type_variable
     | type_constant
-    | type_record_constructor
-    | type_record
-    | type_tuple
-    | delimited!(char!('('), type_annotation, char!(')'))
+    | call!(type_record_constructor, indentation)
+    | call!(type_record, indentation)
+    | call!(type_tuple, indentation)
+    | delimited!(char!('('), call!(type_annotation, indentation), char!(')'))
   )
 );
 
-named!(pub type_constructor<CompleteStr, Type>,
+named_args!(pub type_constructor(indentation: u32)<CompleteStr, Type>,
   do_parse!(
     first: separated_nonempty_list!(
       char!('.'),
       up_name
     ) >>
-    second: opt!(many0!(preceded!(spaces, type_parameter))) >>
+    second: opt!(
+      many0!(
+        preceded!(
+          call!(spaces_or_new_line_and_indent, indentation),
+          call!(type_parameter, indentation)
+        )
+      )
+    ) >>
     (Type::TypeConstructor(first, second.unwrap_or(vec![])))
   )
 );
 
-named!(pub type_<CompleteStr, Type>,
+named_args!(pub type_(indentation: u32)<CompleteStr, Type>,
   alt!(
-      type_constructor
+      call!(type_constructor, indentation)
     | type_variable
-    | type_record_constructor
-    | type_record
-    | type_tuple
-    | delimited!(char!('('), type_annotation, char!(')'))
+    | call!(type_record_constructor, indentation)
+    | call!(type_record, indentation)
+    | call!(type_tuple, indentation)
+    | delimited!(char!('('), call!(type_annotation, indentation), char!(')'))
   )
 );
 
-named!(pub type_annotation<CompleteStr, Type>,
+named_args!(pub type_annotation(indentation: u32)<CompleteStr, Type>,
   map_res!(
     separated_nonempty_list!(
       delimited!(spaces_and_newlines, tag!("->"), spaces_and_newlines),
-      type_
+      call!(type_, indentation)
     ),
     |mut v: Vec<Type>| {
         if v.len() == 0 {
@@ -153,10 +167,14 @@ mod tests {
         Type::TypeApplication(Box::new(a), Box::new(b))
     }
 
+    fn tcon(name: &str, v: Vec<Type>) -> Type {
+        Type::TypeConstructor(vec![name.to_string()], v)
+    }
+
     #[test]
     fn constant() {
         assert_eq!(
-            type_annotation(CompleteStr("Int")),
+            type_annotation(CompleteStr("Int"), 0),
             Ok((
                 CompleteStr(""),
                 Type::TypeConstructor(vec!["Int".to_string()], vec![])
@@ -167,7 +185,7 @@ mod tests {
     #[test]
     fn variables() {
         assert_eq!(
-            type_annotation(CompleteStr("a")),
+            type_annotation(CompleteStr("a"), 0),
             Ok((CompleteStr(""), tvar("a")))
         );
     }
@@ -175,7 +193,7 @@ mod tests {
     #[test]
     fn variables_with_numbers() {
         assert_eq!(
-            type_annotation(CompleteStr("a1")),
+            type_annotation(CompleteStr("a1"), 0),
             Ok((CompleteStr(""), tvar("a1")))
         );
     }
@@ -183,7 +201,7 @@ mod tests {
     #[test]
     fn empty_record() {
         assert_eq!(
-            type_annotation(CompleteStr("{}")),
+            type_annotation(CompleteStr("{}"), 0),
             Ok((CompleteStr(""), Type::TypeRecord(vec![])))
         );
     }
@@ -191,15 +209,62 @@ mod tests {
     #[test]
     fn empty_tuple() {
         assert_eq!(
-            type_annotation(CompleteStr("()")),
+            type_annotation(CompleteStr("()"), 0),
             Ok((CompleteStr(""), Type::TypeTuple(vec![])))
+        );
+    }
+
+    #[test]
+    fn basic_record() {
+        assert_eq!(
+            type_annotation(CompleteStr("{ a : String }"), 0),
+            Ok((
+                CompleteStr(""),
+                Type::TypeRecord(vec![("a".to_string(), tcon("String", vec![]))])
+            ))
+        );
+    }
+
+    #[test]
+    fn two_entry_record() {
+        assert_eq!(
+            type_annotation(CompleteStr("{ a : String, b : String }"), 0),
+            Ok((
+                CompleteStr(""),
+                Type::TypeRecord(vec![
+                    ("a".to_string(), tcon("String", vec![])),
+                    ("b".to_string(), tcon("String", vec![])),
+                ])
+            ))
+        );
+    }
+
+    #[test]
+    fn multi_line_record() {
+        assert_eq!(
+            type_annotation(
+                CompleteStr(
+                    "{
+                 a : String
+               , b : String
+}"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Type::TypeRecord(vec![
+                    ("a".to_string(), tcon("String", vec![])),
+                    ("b".to_string(), tcon("String", vec![])),
+                ])
+            ))
         );
     }
 
     #[test]
     fn application() {
         assert_eq!(
-            type_annotation(CompleteStr("a -> b")),
+            type_annotation(CompleteStr("a -> b"), 0),
             Ok((CompleteStr(""), tapp(tvar("a"), tvar("b"))))
         );
     }
@@ -207,7 +272,7 @@ mod tests {
     #[test]
     fn application_associativity() {
         assert_eq!(
-            type_annotation(CompleteStr("a -> b -> c")),
+            type_annotation(CompleteStr("a -> b -> c"), 0),
             Ok((CompleteStr(""), tapp(tvar("a"), tapp(tvar("b"), tvar("c")))))
         );
     }
@@ -215,7 +280,7 @@ mod tests {
     #[test]
     fn application_parens() {
         assert_eq!(
-            type_annotation(CompleteStr("(a -> b) -> c")),
+            type_annotation(CompleteStr("(a -> b) -> c"), 0),
             Ok((CompleteStr(""), tapp(tapp(tvar("a"), tvar("b")), tvar("c"))))
         );
     }
@@ -223,12 +288,47 @@ mod tests {
     #[test]
     fn qualified_types() {
         assert_eq!(
-            type_annotation(CompleteStr("Html.App Msg")),
+            type_annotation(CompleteStr("Html.App Msg"), 0),
             Ok((
                 CompleteStr(""),
                 Type::TypeConstructor(
                     vec!["Html".to_string(), "App".to_string()],
                     vec![Type::TypeConstructor(vec!["Msg".to_string()], vec![])]
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn multi_line_type() {
+        assert_eq!(
+            type_annotation(
+                CompleteStr(
+                    "CssModules.Helpers
+        { a : String
+        , b : String
+        }
+        msg"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Type::TypeConstructor(
+                    vec!["CssModules".to_string(), "Helpers".to_string()],
+                    vec![
+                        Type::TypeRecord(vec![
+                            (
+                                "a".to_string(),
+                                Type::TypeConstructor(vec!["String".to_string()], vec![]),
+                            ),
+                            (
+                                "b".to_string(),
+                                Type::TypeConstructor(vec!["String".to_string()], vec![]),
+                            ),
+                        ]),
+                        Type::TypeVariable("msg".to_string()),
+                    ]
                 )
             ))
         );
