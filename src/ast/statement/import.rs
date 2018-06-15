@@ -1,4 +1,4 @@
-use ast::helpers::{module_name, spaces, up_name, Alias};
+use ast::helpers::{module_name, spaces, up_name};
 use ast::statement::core::Statement;
 use ast::statement::export::exports;
 
@@ -28,6 +28,7 @@ named!(pub import_statement<CompleteStr, Statement>,
 #[cfg(test)]
 mod tests {
 
+    use ast::helpers::Alias;
     use ast::statement::core::*;
     use ast::statement::import::*;
     use nom::types::CompleteStr;
