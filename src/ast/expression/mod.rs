@@ -596,6 +596,49 @@ mod tests {
     }
 
     #[test]
+    fn multi_line_record() {
+        assert_eq!(
+            record(
+                CompleteStr(
+                    "{ a = b
+                     , b = 2
+                     }"
+                ),
+                1
+            ),
+            Ok((
+                CompleteStr(""),
+                Expression::Record(vec![
+                    ("a".to_string(), var("b")),
+                    ("b".to_string(), int("2")),
+                ])
+            ))
+        );
+    }
+
+    #[test]
+    fn multi_line_record_with_comments() {
+        assert_eq!(
+            record(
+                CompleteStr(
+                    "{ a = b
+                       -- First comment
+                     , b = 2 -- Second comment
+                     }"
+                ),
+                1
+            ),
+            Ok((
+                CompleteStr(""),
+                Expression::Record(vec![
+                    ("a".to_string(), var("b")),
+                    ("b".to_string(), int("2")),
+                ])
+            ))
+        );
+    }
+
+    #[test]
     fn simple_record_with_many_tuple_fields() {
         assert_eq!(
             record(CompleteStr("{ a = (a, b), b = (a, b) }"), 0),

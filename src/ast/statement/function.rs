@@ -14,8 +14,8 @@ named_args!(pub function_type_declaration(indentation: u32)<CompleteStr, Stateme
     ) >>
     spaces >>
     char!(':') >>
-    call!(spaces_or_new_lines_and_indent, indentation, IR::GT) >>
-    type_: call!(type_annotation, indentation + 1) >>
+    new_indent: call!(spaces_or_new_lines_and_indent, indentation, IR::GT) >>
+    type_: call!(type_annotation, new_indent) >>
     (Statement::FunctionTypeDeclaration(name, type_))
   )
 );
@@ -29,8 +29,8 @@ named!(pub function_declaration<CompleteStr, Statement>,
     args: many0!(preceded!(spaces, call!(term, 0))) >>
     spaces >>
     char!('=') >>
-    spaces_and_newlines >>
-    exp: call!(expression, 0) >>
+    new_indent: call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
+    exp: call!(expression, new_indent) >>
     (Statement::FunctionDeclaration(name, args, exp))
   )
 );

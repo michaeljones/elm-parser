@@ -266,6 +266,31 @@ mod tests {
     }
 
     #[test]
+    fn multi_line_record_with_comments() {
+        assert_eq!(
+            type_annotation(
+                CompleteStr(
+                    "{
+                 -- First comment
+                 a : String
+
+                 -- Second comment
+               , b : String -- Third comment
+}"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Type::TypeRecord(vec![
+                    ("a".to_string(), tcon("String", vec![])),
+                    ("b".to_string(), tcon("String", vec![])),
+                ])
+            ))
+        );
+    }
+
+    #[test]
     fn list_of_tuples() {
         assert_eq!(
             type_annotation(CompleteStr("List ( String, String )"), 0),
