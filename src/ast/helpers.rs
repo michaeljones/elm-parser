@@ -109,6 +109,10 @@ named!(pub spaces <CompleteStr, String>,
   map!(is_a!(" "), |s| s.to_string())
 );
 
+named!(pub spaces0 <CompleteStr, String>,
+  map!(opt!(is_a!(" ")), |s| s.map(|c| c.to_string()).unwrap_or("".to_string()))
+);
+
 named!(pub spaces_and_newlines <CompleteStr, String>,
   map!(is_a!(" \n"), |s| s.to_string())
 );
@@ -124,16 +128,64 @@ named_args!(pub new_line_and_exact_indent(indentation: u32) <CompleteStr, u32>,
     )
 );
 
-named_args!(pub spaces_or_new_line_and_indent(indentation: u32) <CompleteStr, u32>,
-    alt!(
-          do_parse!(
-            many0!(char!(' ')) >>
-            char!('\n') >>
-            indent: call!(at_least_indent, indentation) >>
-            (indent)
+named!(single_line_comment<CompleteStr, String>,
+  map!(preceded!(tag!("--"), re_matches!(r"^(.*)")), |v| v[0].to_string())
+);
+
+// IndentRelation
+pub enum IR {
+    EQ,
+    GT,
+    GTE,
+}
+
+named_args!(pub spaces_or_new_lines_and_indent(indentation: u32, ir: IR) <CompleteStr, u32>,
+  map_res!(
+    many1!(
+      alt!(
+          map!(spaces, |s| vec![indentation + s.len() as u32 ])
+        | map!(single_line_comment, |_| vec![0])
+        | many1!(
+            preceded!(
+              char!('\n'),
+              alt!(
+                  map!(spaces0, |s| s.len() as u32)
+                | map!(single_line_comment, |_| 0)
+              )
+            )
           )
-        | map!(is_a!(" "), |s| indentation + s.to_string().len() as u32)
-    )
+      )
+    ),
+    |v: Vec<Vec<u32>>| {
+        let new_indent = *(v.last().unwrap_or(&vec![]).last().unwrap_or(&0));
+        match ir {
+            IR::EQ => {
+                if new_indent == indentation {
+                    Ok(new_indent)
+                }
+                else {
+                    Err("Indent does not match".to_string())
+                }
+            },
+            IR::GT => {
+                if new_indent > indentation {
+                    Ok(new_indent)
+                }
+                else {
+                    Err("Indent does must be greater".to_string())
+                }
+            },
+            IR::GTE => {
+                if new_indent >= indentation {
+                    Ok(new_indent)
+                }
+                else {
+                    Err("Indent does must be greater than or equal".to_string())
+                }
+            }
+        }
+    }
+  )
 );
 
 #[cfg(test)]
@@ -166,13 +218,29 @@ mod tests {
     #[test]
     fn valid_zero_spaces() {
         assert_eq!(
-            spaces_or_new_line_and_indent(CompleteStr("\n"), 0),
-            Ok((CompleteStr(""), 0))
+            spaces_or_new_lines_and_indent(CompleteStr("\n "), 0, IR::GTE),
+            Ok((CompleteStr(""), 1))
         );
     }
 
     #[test]
     fn invalid_zero_spaces() {
-        assert!(spaces_or_new_line_and_indent(CompleteStr("\n"), 1).is_err());
+        assert!(spaces_or_new_lines_and_indent(CompleteStr("\n"), 1, IR::GTE).is_err());
+    }
+
+    #[test]
+    fn spaces_with_comment() {
+        assert_eq!(
+            spaces_or_new_lines_and_indent(CompleteStr(" -- Comment\n  "), 0, IR::GTE),
+            Ok((CompleteStr(""), 2))
+        );
+    }
+
+    #[test]
+    fn just_spaces() {
+        assert_eq!(
+            spaces_or_new_lines_and_indent(CompleteStr("   "), 1, IR::GTE),
+            Ok((CompleteStr(""), 4))
+        );
     }
 }

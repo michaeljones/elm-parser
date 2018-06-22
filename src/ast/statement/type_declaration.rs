@@ -1,4 +1,4 @@
-use ast::helpers::{spaces, spaces_and_newlines, spaces_or_new_line_and_indent};
+use ast::helpers::{spaces, spaces_and_newlines, spaces_or_new_lines_and_indent, IR};
 use ast::statement::core::Statement;
 use ast::statement::type_::{type_, type_annotation, type_constructor};
 
@@ -13,7 +13,7 @@ named!(pub type_alias_declaration<CompleteStr, Statement>,
     name: call!(type_, 0) >>
     spaces >>
     char!('=') >>
-    call!(spaces_or_new_line_and_indent, 1) >>
+    call!(spaces_or_new_lines_and_indent, 1, IR::GTE) >>
     declaration: call!(type_annotation, 1) >>
     (Statement::TypeAliasDeclaration(name, declaration))
   )

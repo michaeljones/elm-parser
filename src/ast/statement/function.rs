@@ -1,5 +1,6 @@
 use ast::expression::{expression, term};
-use ast::helpers::{lo_name, operator, spaces, spaces_and_newlines, spaces_or_new_line_and_indent};
+use ast::helpers::{lo_name, operator, spaces, spaces_and_newlines, spaces_or_new_lines_and_indent,
+                   IR};
 use ast::statement::core::Statement;
 use ast::statement::type_::type_annotation;
 
@@ -13,7 +14,7 @@ named_args!(pub function_type_declaration(indentation: u32)<CompleteStr, Stateme
     ) >>
     spaces >>
     char!(':') >>
-    call!(spaces_or_new_line_and_indent, indentation + 1) >>
+    call!(spaces_or_new_lines_and_indent, indentation, IR::GT) >>
     type_: call!(type_annotation, indentation + 1) >>
     (Statement::FunctionTypeDeclaration(name, type_))
   )

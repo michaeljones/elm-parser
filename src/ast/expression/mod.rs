@@ -16,7 +16,8 @@ use ast::expression::float::float;
 use ast::expression::integer::integer;
 use ast::expression::string::string;
 use ast::expression::variable::variable;
-use ast::helpers::{lo_name, new_line_and_exact_indent, operator, spaces_or_new_line_and_indent};
+use ast::helpers::{lo_name, new_line_and_exact_indent, operator, spaces_or_new_lines_and_indent,
+                   IR};
 
 // use nom;
 use nom::types::CompleteStr;
@@ -43,19 +44,19 @@ named_args!(tuple(indentation: u32) <CompleteStr, Expression>,
 named_args!(list(indentation: u32) <CompleteStr, Expression>,
   map!(
     delimited!(
-        preceded!(char!('['), opt!(call!(spaces_or_new_line_and_indent, indentation))),
+        preceded!(char!('['), opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE))),
         // Not sure why this optional is required
         opt!(
             separated_list!(
                 delimited!(
-                    opt!(call!(spaces_or_new_line_and_indent, indentation)),
+                    opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)),
                     char!(','),
-                    opt!(call!(spaces_or_new_line_and_indent, indentation))
+                    opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE))
                 ),
                 call!(expression, indentation)
             )
         ),
-        terminated!(opt!(call!(spaces_or_new_line_and_indent, indentation)), char!(']'))
+        terminated!(opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)), char!(']'))
     ),
     |o| Expression::List(o.unwrap_or(vec![]))
   )
@@ -64,24 +65,24 @@ named_args!(list(indentation: u32) <CompleteStr, Expression>,
 named_args!(record(indentation: u32) <CompleteStr, Expression>,
   map!(
     delimited!(
-        preceded!(char!('{'), opt!(call!(spaces_or_new_line_and_indent, indentation))),
+        preceded!(char!('{'), opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE))),
         separated_list!(
             delimited!(
-                opt!(call!(spaces_or_new_line_and_indent, indentation)),
+                opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)),
                 char!(','),
-                opt!(call!(spaces_or_new_line_and_indent, indentation))
+                opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE))
             ),
             separated_pair!(
                 lo_name,
                 delimited!(
-                    opt!(call!(spaces_or_new_line_and_indent, indentation)),
+                    opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)),
                     char!('='),
-                    opt!(call!(spaces_or_new_line_and_indent, indentation))
+                    opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE))
                 ),
                 call!(expression, indentation)
             )
         ),
-        terminated!(opt!(call!(spaces_or_new_line_and_indent, indentation)), char!('}'))
+        terminated!(opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)), char!('}'))
     ),
     Expression::Record
   )
@@ -168,9 +169,9 @@ named_args!(lambda(indentation: u32) <CompleteStr, Expression>,
   do_parse!(
     char!('\\') >>
     args: separated_nonempty_list!(space1, call!(term, indentation)) >>
-    call!(spaces_or_new_line_and_indent, indentation) >>
+    call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
     tag!("->") >>
-    new_indent: call!(spaces_or_new_line_and_indent, indentation) >>
+    new_indent: call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
     body: call!(expression, new_indent) >>
     (Expression::Lambda(args, Box::new(body)))
   )
@@ -181,7 +182,7 @@ named_args!(lambda(indentation: u32) <CompleteStr, Expression>,
 named_args!(application_or_var(indentation: u32) <CompleteStr, Expression>,
   map_res!(
       separated_list!(
-          call!(spaces_or_new_line_and_indent, indentation),
+          call!(spaces_or_new_lines_and_indent, indentation, IR::GTE),
           call!(term, indentation)
       ),
       |v: Vec<Expression>| {
@@ -206,9 +207,9 @@ named_args!(application_or_var(indentation: u32) <CompleteStr, Expression>,
 named_args!(let_binding(indentation: u32) <CompleteStr, (Expression, Expression)>,
    do_parse!(
        binding: call!(expression, indentation) >>
-       call!(spaces_or_new_line_and_indent, indentation) >>
+       call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        char!('=') >>
-       new_indent: call!(spaces_or_new_line_and_indent, indentation) >>
+       new_indent: call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        expression: call!(expression, new_indent) >>
        (binding, expression)
    )
@@ -221,11 +222,11 @@ named_args!(let_bindings(indentation: u32) <CompleteStr, Vec<(Expression, Expres
 named_args!(let_expression(indentation: u32) <CompleteStr, Expression>,
    do_parse!(
        tag!("let") >>
-       assignment_indentation: call!(spaces_or_new_line_and_indent, indentation) >>
+       assignment_indentation: call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        assignments: call!(let_bindings, assignment_indentation) >>
-       call!(spaces_or_new_line_and_indent, indentation) >>
+       call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        tag!("in") >>
-       call!(spaces_or_new_line_and_indent, indentation) >>
+       call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        expression: call!(expression, indentation) >>
        (Expression::Let(assignments, Box::new(expression)))
    )
@@ -236,9 +237,9 @@ named_args!(let_expression(indentation: u32) <CompleteStr, Expression>,
 named_args!(case(indentation: u32) <CompleteStr, (Expression, Expression)>,
    do_parse!(
        matcher: call!(expression, indentation) >>
-       call!(spaces_or_new_line_and_indent, indentation) >>
+       call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        tag!("->") >>
-       new_indent: call!(spaces_or_new_line_and_indent, indentation) >>
+       new_indent: call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        expression: call!(expression, new_indent) >>
        (matcher, expression)
    )
@@ -251,11 +252,11 @@ named_args!(cases(indentation: u32) <CompleteStr, Vec<(Expression, Expression)>>
 named_args!(case_expression(indentation: u32) <CompleteStr, Expression>,
    do_parse!(
        tag!("case") >>
-       call!(spaces_or_new_line_and_indent, indentation) >>
+       call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        expression: call!(expression, indentation) >>
-       call!(spaces_or_new_line_and_indent, indentation) >>
+       call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        tag!("of") >>
-       new_indent: call!(spaces_or_new_line_and_indent, indentation) >>
+       new_indent: call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        cases: call!(cases, new_indent) >>
        (Expression::Case(Box::new(expression), cases))
    )
@@ -266,15 +267,15 @@ named_args!(case_expression(indentation: u32) <CompleteStr, Expression>,
 named_args!(if_expression(indentation: u32) <CompleteStr, Expression>,
    do_parse!(
        tag!("if") >>
-       call!(spaces_or_new_line_and_indent, indentation) >>
+       call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        test: call!(expression, indentation) >>
-       call!(spaces_or_new_line_and_indent, indentation) >>
+       call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        tag!("then") >>
-       new_indent: call!(spaces_or_new_line_and_indent, indentation) >>
+       new_indent: call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        if_exp: call!(expression, new_indent) >>
-       call!(spaces_or_new_line_and_indent, indentation) >>
+       call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        tag!("else") >>
-       call!(spaces_or_new_line_and_indent, indentation) >>
+       call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        else_exp: call!(expression, new_indent) >>
        (Expression::If(Box::new(test), Box::new(if_exp), Box::new(else_exp)))
    )
@@ -298,7 +299,7 @@ named_args!(binary(indentation: u32) <CompleteStr, Expression>,
      application_or_var: call!(application_or_var, indentation) >>
      operator_exp: opt!(
        do_parse!(
-         call!(spaces_or_new_line_and_indent, indentation) >>
+         call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
          operator: operator_or_as >>
          multispace >>
          expression: call!(expression, indentation) >>

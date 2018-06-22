@@ -1,5 +1,5 @@
-use ast::helpers::{lo_name, spaces, spaces_and_newlines, spaces_or_new_line_and_indent, up_name,
-                   Name};
+use ast::helpers::{lo_name, spaces, spaces_and_newlines, spaces_or_new_lines_and_indent, up_name,
+                   Name, IR};
 use ast::statement::core::Type;
 
 use nom::types::CompleteStr;
@@ -21,16 +21,16 @@ named!(type_constant<CompleteStr, Type>,
 named_args!(type_tuple(indentation: u32)<CompleteStr, Type>,
   map!(
     delimited!(
-      preceded!(char!('('), opt!(call!(spaces_or_new_line_and_indent, indentation))),
+      preceded!(char!('('), opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE))),
       separated_list!(
         delimited!(
-            opt!(call!(spaces_or_new_line_and_indent, indentation)),
+            opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)),
             char!(','),
-            opt!(call!(spaces_or_new_line_and_indent, indentation))
+            opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE))
         ),
         call!(type_, indentation)
       ),
-      terminated!(opt!(call!(spaces_or_new_line_and_indent, indentation)), char!(')'))
+      terminated!(opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)), char!(')'))
     ),
     |v| Type::TypeTuple(v)
   )
@@ -39,9 +39,9 @@ named_args!(type_tuple(indentation: u32)<CompleteStr, Type>,
 named_args!(type_record_pair(indentation: u32)<CompleteStr, (Name, Type)>,
   do_parse!(
     name: lo_name >>
-    opt!(call!(spaces_or_new_line_and_indent, indentation)) >>
+    opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)) >>
     char!(':') >>
-    opt!(call!(spaces_or_new_line_and_indent, indentation)) >>
+    opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)) >>
     type_annotation: call!(type_annotation, indentation) >>
     ((name, type_annotation))
   )
@@ -50,9 +50,9 @@ named_args!(type_record_pair(indentation: u32)<CompleteStr, (Name, Type)>,
 named_args!(type_record_pairs(indentation: u32)<CompleteStr, Vec<(Name, Type)>>,
   separated_list!(
     delimited!(
-        opt!(call!(spaces_or_new_line_and_indent, indentation)),
+        opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)),
         char!(','),
-        opt!(call!(spaces_or_new_line_and_indent, indentation))
+        opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE))
     ),
     call!(type_record_pair, indentation)
   )
@@ -75,12 +75,12 @@ named_args!(type_record_constructor(indentation: u32)<CompleteStr, Type>,
 
 named_args!(type_record(indentation: u32)<CompleteStr, Type>,
   delimited!(
-    preceded!(char!('{'), opt!(call!(spaces_or_new_line_and_indent, indentation))),
+    preceded!(char!('{'), opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE))),
     map!(
       call!(type_record_pairs, indentation),
       Type::TypeRecord
     ),
-    terminated!(opt!(call!(spaces_or_new_line_and_indent, indentation)), char!('}'))
+    terminated!(opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)), char!('}'))
   )
 );
 
@@ -104,7 +104,7 @@ named_args!(pub type_constructor(indentation: u32)<CompleteStr, Type>,
     second: opt!(
       many0!(
         preceded!(
-          call!(spaces_or_new_line_and_indent, indentation),
+          call!(spaces_or_new_lines_and_indent, indentation, IR::GTE),
           call!(type_parameter, indentation)
         )
       )
