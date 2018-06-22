@@ -1,4 +1,3 @@
-use nom::alphanumeric0;
 use nom::types::CompleteStr;
 
 pub type Name = String;
@@ -15,18 +14,6 @@ const RESERVED_WORDS: &[&str] = &[
 ];
 
 const RESERVED_OPERATORS: &[&str] = &["=", ".", "..", "->", "--", "|", ":"];
-
-/// Tests if byte is ASCII: a-z
-#[inline]
-pub fn is_lowercase(chr: char) -> bool {
-    (chr >= 'a' && chr <= 'z')
-}
-
-/// Tests if byte is ASCII: a-z
-#[inline]
-pub fn is_uppercase(chr: char) -> bool {
-    (chr >= 'A' && chr <= 'Z')
-}
 
 named!(pub lo_name<CompleteStr, String>,
   alt!(
@@ -58,11 +45,7 @@ named!(pub module_name<CompleteStr, ModuleName>,
 );
 
 named!(pub up_name<CompleteStr, String>,
-  do_parse!(
-    start: take_while_m_n!(1, 1, is_uppercase) >>
-    rest: map!(alphanumeric0, |v| v.to_string()) >>
-    (start.to_string() + &rest)
-  )
+  map!(re_matches!(r"^([A-Z][a-zA-Z0-9_]*)"), |c| c[0].to_string())
 );
 
 named!(pub operator<CompleteStr, String>,
@@ -80,31 +63,6 @@ named!(pub operator<CompleteStr, String>,
   )
 );
 
-named_args!(pub at_least_indent(indentation: u32) <CompleteStr, u32>,
-  map_res!(
-      many0!(char!(' ')),
-      |spaces: Vec<char>|  {
-        let length = spaces.len() as u32;
-        // Expect to have the same or more indentation
-        if length >= indentation {
-            Ok(length)
-        } else {
-            Err("Not enough spaces".to_string())
-        }
-      }
-  )
-);
-
-fn exactly(spaces: CompleteStr, indentation: u32) -> Result<u32, String> {
-    let length = spaces.len() as u32;
-    // Expect to have exactly the indentation
-    if length == indentation {
-        Ok(length)
-    } else {
-        Err(spaces.to_string())
-    }
-}
-
 named!(pub spaces <CompleteStr, String>,
   map!(is_a!(" "), |s| s.to_string())
 );
@@ -115,17 +73,6 @@ named!(pub spaces0 <CompleteStr, String>,
 
 named!(pub spaces_and_newlines <CompleteStr, String>,
   map!(is_a!(" \n"), |s| s.to_string())
-);
-
-named_args!(pub exactly_indent(indentation: u32) <CompleteStr, u32>,
-  map_res!(is_a!(" "), |s| exactly(s, indentation))
-);
-
-named_args!(pub new_line_and_exact_indent(indentation: u32) <CompleteStr, u32>,
-    preceded!(
-        re_matches!(r"^[ \n]*\n"),
-        call!(exactly_indent, indentation)
-    )
 );
 
 named!(single_line_comment<CompleteStr, String>,

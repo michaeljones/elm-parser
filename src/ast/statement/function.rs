@@ -1,6 +1,5 @@
 use ast::expression::{expression, term};
-use ast::helpers::{lo_name, operator, spaces, spaces_and_newlines, spaces_or_new_lines_and_indent,
-                   IR};
+use ast::helpers::{lo_name, operator, spaces, spaces_or_new_lines_and_indent, IR};
 use ast::statement::core::Statement;
 use ast::statement::type_::type_annotation;
 

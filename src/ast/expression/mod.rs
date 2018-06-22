@@ -16,8 +16,7 @@ use ast::expression::float::float;
 use ast::expression::integer::integer;
 use ast::expression::string::string;
 use ast::expression::variable::variable;
-use ast::helpers::{lo_name, new_line_and_exact_indent, operator, spaces_or_new_lines_and_indent,
-                   IR};
+use ast::helpers::{lo_name, operator, spaces_or_new_lines_and_indent, IR};
 
 // use nom;
 use nom::types::CompleteStr;
@@ -216,7 +215,10 @@ named_args!(let_binding(indentation: u32) <CompleteStr, (Expression, Expression)
 );
 
 named_args!(let_bindings(indentation: u32) <CompleteStr, Vec<(Expression, Expression)>>,
-    separated_nonempty_list!(call!(new_line_and_exact_indent, indentation), call!(let_binding, indentation))
+    separated_nonempty_list!(
+        call!(spaces_or_new_lines_and_indent, indentation, IR::EQ),
+        call!(let_binding, indentation)
+    )
 );
 
 named_args!(let_expression(indentation: u32) <CompleteStr, Expression>,
@@ -246,7 +248,10 @@ named_args!(case(indentation: u32) <CompleteStr, (Expression, Expression)>,
 );
 
 named_args!(cases(indentation: u32) <CompleteStr, Vec<(Expression, Expression)>>,
-    separated_nonempty_list!(call!(new_line_and_exact_indent, indentation), call!(case, indentation))
+    separated_nonempty_list!(
+        call!(spaces_or_new_lines_and_indent, indentation, IR::EQ),
+        call!(case, indentation)
+    )
 );
 
 named_args!(case_expression(indentation: u32) <CompleteStr, Expression>,
