@@ -24,9 +24,9 @@ named_args!(pub type_declaration(indentation: u32)<CompleteStr, Statement>,
     tag!("type") >>
     spaces >>
     name: call!(type_, indentation) >>
-    spaces >>
+    new_indent: call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     char!('=') >>
-    spaces_and_newlines >>
+    call!(spaces_or_new_lines_and_indent, new_indent, IR::GTE) >>
     definition: separated_nonempty_list!(
       delimited!(spaces_and_newlines, char!('|'), spaces),
       call!(type_constructor, indentation)
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn can_parse_multiline_type_declaration() {
         assert_eq!(
-            type_declaration(CompleteStr("type A = A | B\n| C\n| D"), 0),
+            type_declaration(CompleteStr("type A\n  = A | B\n  | C\n  | D"), 0),
             Ok((
                 CompleteStr(""),
                 Statement::TypeDeclaration(
