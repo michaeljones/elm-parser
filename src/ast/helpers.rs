@@ -243,4 +243,12 @@ mod tests {
             Ok((CompleteStr(""), 4))
         );
     }
+
+    #[test]
+    fn simple_name() {
+        assert_eq!(
+            lo_name(CompleteStr("goToUserPage")),
+            Ok((CompleteStr(""), "goToUserPage".to_string()))
+        );
+    }
 }

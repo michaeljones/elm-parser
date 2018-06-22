@@ -1,5 +1,5 @@
 use ast::expression::expression;
-use ast::helpers::{lo_name, spaces, spaces_and_newlines};
+use ast::helpers::{lo_name, spaces, spaces_or_new_lines_and_indent, IR};
 use ast::statement::core::Statement;
 use ast::statement::type_::type_annotation;
 
@@ -12,8 +12,8 @@ named_args!(pub port_type_declaration(indentation: u32)<CompleteStr, Statement>,
     name: lo_name >>
     spaces >>
     char!(':') >>
-    spaces_and_newlines >>
-    type_: call!(type_annotation, 0) >>
+    new_indent: call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
+    type_: call!(type_annotation, new_indent) >>
     (Statement::PortTypeDeclaration(name, type_))
   )
 );
@@ -26,8 +26,8 @@ named!(pub port_declaration<CompleteStr, Statement>,
     args: many0!(preceded!(spaces, lo_name)) >>
     spaces >>
     char!('=') >>
-    spaces_and_newlines >>
-    exp: call!(expression, 0) >>
+    new_indent: call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
+    exp: call!(expression, new_indent) >>
     (Statement::PortDeclaration(name, args, exp))
   )
 );
