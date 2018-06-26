@@ -101,15 +101,13 @@ named_args!(pub type_constructor(indentation: u32)<CompleteStr, Type>,
       char!('.'),
       up_name
     ) >>
-    second: opt!(
-      many0!(
-        preceded!(
-          call!(spaces_or_new_lines_and_indent, indentation, IR::GTE),
-          call!(type_parameter, indentation)
-        )
+    second: many0!(
+      preceded!(
+        call!(spaces_or_new_lines_and_indent, indentation, IR::GTE),
+        call!(type_parameter, indentation)
       )
     ) >>
-    (Type::TypeConstructor(first, second.unwrap_or(vec![])))
+    (Type::TypeConstructor(first, second))
   )
 );
 
