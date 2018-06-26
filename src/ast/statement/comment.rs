@@ -4,7 +4,7 @@ use nom::types::CompleteStr;
 
 named!(single_line_comment<CompleteStr, Statement>,
   map!(
-    preceded!(tag!("--"), re_matches!(r"^(.*)$")),
+    preceded!(tag!("--"), re_matches!(r"^(.*)")),
     |v| Statement::Comment(v[0].to_string())
   )
 );
