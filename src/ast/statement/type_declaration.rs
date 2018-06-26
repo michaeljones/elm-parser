@@ -28,8 +28,8 @@ named_args!(pub type_declaration(indentation: u32)<CompleteStr, Statement>,
     char!('=') >>
     call!(spaces_or_new_lines_and_indent, new_indent, IR::GTE) >>
     definition: separated_nonempty_list!(
-      delimited!(spaces_and_newlines, char!('|'), spaces),
-      call!(type_constructor, indentation)
+      delimited!(call!(spaces_or_new_lines_and_indent, new_indent, IR::GTE), char!('|'), spaces),
+      call!(type_constructor, new_indent)
     ) >>
     (Statement::TypeDeclaration(name, definition))
   )
@@ -180,4 +180,9 @@ mod tests {
             ))
         );
     }
+
+    // #[test]
+    // fn fails_with_trailing_character() {
+    //     assert!(type_declaration(CompleteStr("type A\n  = A | B\n  | C\n  | D\n\nf"), 0).is_err());
+    // }
 }
