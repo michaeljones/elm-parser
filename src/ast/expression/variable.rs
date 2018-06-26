@@ -19,7 +19,13 @@ named!(upper_with_dots<CompleteStr, Expression>,
 
 named!(op<CompleteStr, Expression>,
   map!(
-      delimited!(char!('('), operator, char!(')')),
+      delimited!(char!('('),
+          // Either a normal operator or commas inside brackets. We can't include ',' in the
+          // operator match as it risks matching commas in lists, etc.
+          alt!(
+              operator
+            | map!(is_a!(","), |c| c.to_string())), char!(')')
+          ),
       |s| Expression::Variable(vec![s])
   )
 );
