@@ -1,4 +1,4 @@
-use ast::helpers::{spaces, spaces_and_newlines, spaces_or_new_lines_and_indent, IR};
+use ast::helpers::{spaces, spaces_or_new_lines_and_indent, IR};
 use ast::statement::core::Statement;
 use ast::statement::type_::{type_, type_annotation, type_constructor};
 

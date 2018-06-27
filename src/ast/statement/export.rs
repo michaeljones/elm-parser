@@ -38,7 +38,7 @@ named!(constructor_exports<CompleteStr, Option<Box<ExportSet>>>,
         ),
         char!(')')
       ),
-      |es| Box::new(es)
+      Box::new
     )
   )
 );

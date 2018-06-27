@@ -7,7 +7,7 @@ named!(pub integer<CompleteStr, Expression>,
   do_parse!(
     sign: map!(
       opt!(alt!(char!('+') | char!('-'))),
-      |opt| opt.map(|c| c.to_string()).unwrap_or("".to_string())
+      |opt| opt.map(|c| c.to_string()).unwrap_or_else(String::new)
     ) >>
     number: digit >>
     (Expression::Integer(sign.to_string() + number.0))

@@ -57,7 +57,7 @@ named_args!(list(indentation: u32) <CompleteStr, Expression>,
         ),
         terminated!(opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)), char!(']'))
     ),
-    |o| Expression::List(o.unwrap_or(vec![]))
+    |o| Expression::List(o.unwrap_or_else(|| vec![]))
   )
 );
 
@@ -185,7 +185,7 @@ named_args!(application_or_var(indentation: u32) <CompleteStr, Expression>,
           call!(term, indentation)
       ),
       |v: Vec<Expression>| {
-          if v.len() == 0 {
+          if v.is_empty() {
               Err("Empty list".to_string())
           }
           else if v.len() == 1 {

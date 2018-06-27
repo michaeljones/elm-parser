@@ -28,7 +28,7 @@ named!(pub character<CompleteStr, Expression>,
     delimited!(char!('\''),
     character_content,
     char!('\'')),
-    |c| Expression::Character(c)
+    Expression::Character
   )
 );
 

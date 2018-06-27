@@ -13,7 +13,7 @@ named!(lower_case<CompleteStr, Expression>,
 named!(upper_with_dots<CompleteStr, Expression>,
   map!(
     separated_nonempty_list!(char!('.'), up_name),
-    |v| Expression::Variable(v)
+    Expression::Variable
   )
 );
 

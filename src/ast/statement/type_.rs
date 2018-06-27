@@ -1,5 +1,6 @@
-use ast::helpers::{lo_name, spaces, spaces_and_newlines, spaces_or_new_lines_and_indent, up_name,
-                   Name, IR};
+use ast::helpers::{
+    lo_name, spaces, spaces_and_newlines, spaces_or_new_lines_and_indent, up_name, Name, IR,
+};
 use ast::statement::core::Type;
 
 use nom::types::CompleteStr;
@@ -32,7 +33,7 @@ named_args!(type_tuple(indentation: u32)<CompleteStr, Type>,
       ),
       terminated!(opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)), char!(')'))
     ),
-    |v| Type::TypeTuple(v)
+    Type::TypeTuple
   )
 );
 
@@ -43,7 +44,7 @@ named_args!(type_record_pair(indentation: u32)<CompleteStr, (Name, Type)>,
     char!(':') >>
     opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)) >>
     type_annotation: call!(type_annotation, indentation) >>
-    ((name, type_annotation))
+    (name, type_annotation)
   )
 );
 
@@ -129,7 +130,7 @@ named_args!(pub type_annotation(indentation: u32)<CompleteStr, Type>,
       call!(type_, indentation)
     ),
     |mut v: Vec<Type>| {
-        if v.len() == 0 {
+        if v.is_empty() {
             Err("Empty type".to_string())
         }
         else if v.len() == 1 {

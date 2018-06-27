@@ -68,7 +68,7 @@ named!(pub spaces <CompleteStr, String>,
 );
 
 named!(pub spaces0 <CompleteStr, String>,
-  map!(opt!(is_a!(" ")), |s| s.map(|c| c.to_string()).unwrap_or("".to_string()))
+  map!(opt!(is_a!(" ")), |s| s.map(|c| c.to_string()).unwrap_or_else(String::new))
 );
 
 named!(pub spaces_and_newlines <CompleteStr, String>,

@@ -21,7 +21,7 @@ fn get_export_set_imports(export_set: &ast::ExportSet) -> Vec<String> {
     }
 }
 
-fn get_imported_names(ast: Vec<ast::Statement>) -> Vec<String> {
+fn get_imported_names(ast: &[ast::Statement]) -> Vec<String> {
     ast.iter()
         .flat_map(|statement| match statement {
             Statement::ImportStatement(_, _, Some(export_sets)) => {
@@ -46,7 +46,7 @@ fn main() {
 
     match result {
         Ok((_, ast)) => {
-            let imported_names = get_imported_names(ast);
+            let imported_names = get_imported_names(&ast);
             println!("{:#?}", imported_names)
         }
         Err(error) => println!("{:#?}", error),
