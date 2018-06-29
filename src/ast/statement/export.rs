@@ -1,4 +1,5 @@
-use ast::helpers::{function_name, operator, spaces_and_newlines, up_name};
+use ast::helpers::{function_name, operator, spaces_and_newlines, spaces_or_new_lines_and_indent,
+                   up_name, IR};
 use ast::statement::core::ExportSet;
 
 use nom::types::CompleteStr;
@@ -66,12 +67,12 @@ named!(subset_export<CompleteStr, ExportSet>,
 
 named!(pub exports<CompleteStr, ExportSet>,
   delimited!(
-    char!('('),
+    preceded!(char!('('), opt!(call!(spaces_or_new_lines_and_indent, 0, IR::GTE))),
     alt!(
         all_export
       | subset_export
     ),
-    char!(')')
+    terminated!(opt!(call!(spaces_or_new_lines_and_indent, 0, IR::GTE)), char!(')'))
   )
 );
 
@@ -108,7 +109,7 @@ mod tests {
     #[test]
     fn simple_multiline_function_export() {
         assert_eq!(
-            exports(CompleteStr("(a, b,\nc)")),
+            exports(CompleteStr("( a\n,\n b\n,\nc)")),
             Ok((
                 CompleteStr(""),
                 ExportSet::SubsetExport(vec![fexp("a"), fexp("b"), fexp("c")])

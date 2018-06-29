@@ -1,4 +1,4 @@
-use ast::helpers::{lo_name, module_name, spaces, up_name};
+use ast::helpers::{lo_name, module_name, spaces, spaces_or_new_lines_and_indent, up_name, IR};
 use ast::statement::core::Statement;
 use ast::statement::export::exports;
 
@@ -7,13 +7,13 @@ use nom::types::CompleteStr;
 named!(pub port_module_declaration<CompleteStr, Statement>,
   do_parse!(
     tag!("port") >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     tag!("module") >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     name: module_name >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     tag!("exposing") >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     exports: exports >>
     (Statement::PortModuleDeclaration(name, exports))
   )
@@ -22,13 +22,13 @@ named!(pub port_module_declaration<CompleteStr, Statement>,
 named!(pub effect_module_declaration<CompleteStr, Statement>,
   do_parse!(
     tag!("effect") >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     tag!("module") >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     name: module_name >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     tag!("where") >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     where_: delimited!(
       char!('{'),
       separated_list!(
@@ -44,9 +44,9 @@ named!(pub effect_module_declaration<CompleteStr, Statement>,
       ),
       char!('}')
     ) >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     tag!("exposing") >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     exports: exports >>
     (Statement::EffectModuleDeclaration(name, where_, exports))
   )
@@ -55,11 +55,11 @@ named!(pub effect_module_declaration<CompleteStr, Statement>,
 named!(pub module_declaration<CompleteStr, Statement>,
   do_parse!(
     tag!("module") >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     name: module_name >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     tag!("exposing") >>
-    spaces >>
+    call!(spaces_or_new_lines_and_indent, 0, IR::GT) >>
     exports: exports >>
     (Statement::ModuleDeclaration(name, exports))
   )
@@ -155,7 +155,7 @@ mod tests {
     #[test]
     fn multiline_declaration() {
         assert_eq!(
-            module_declaration(CompleteStr("module A exposing (A, B,\nc)")),
+            module_declaration(CompleteStr("module\n A\n exposing\n ( A, B,\nc)")),
             Ok((
                 CompleteStr(""),
                 Statement::ModuleDeclaration(
