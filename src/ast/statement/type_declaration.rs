@@ -42,6 +42,14 @@ mod tests {
     use ast::statement::type_declaration::*;
     use nom::types::CompleteStr;
 
+    fn tvar(name: &str) -> Type {
+        Type::TypeVariable(name.to_string())
+    }
+
+    fn tapp(a: Type, b: Type) -> Type {
+        Type::TypeApplication(Box::new(a), Box::new(b))
+    }
+
     fn tcon(name: &str, v: Vec<Type>) -> Type {
         Type::TypeConstructor(vec![name.to_string()], v)
     }
@@ -176,6 +184,45 @@ mod tests {
                         Type::TypeConstructor(vec!["C".to_string()], vec![]),
                         Type::TypeConstructor(vec!["D".to_string()], vec![]),
                     ]
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn can_parse_complex_function_alias() {
+        assert_eq!(
+            type_alias_declaration(CompleteStr(
+                "type alias LanguageHelper a b =
+    ({ b
+        | commonErrorName : a
+        , commonErrorDescription : a
+        , kpiErrorCalculationType : a
+        , kpiErrorAggregationType : a
+     }
+     -> a
+    )
+    -> String"
+            )),
+            Ok((
+                CompleteStr(""),
+                Statement::TypeAliasDeclaration(
+                    tcon("LanguageHelper", vec![tvar("a"), tvar("b")]),
+                    tapp(
+                        tapp(
+                            Type::TypeRecordConstructor(
+                                Box::new(tvar("b")),
+                                vec![
+                                    ("commonErrorName".to_string(), tvar("a")),
+                                    ("commonErrorDescription".to_string(), tvar("a")),
+                                    ("kpiErrorCalculationType".to_string(), tvar("a")),
+                                    ("kpiErrorAggregationType".to_string(), tvar("a")),
+                                ],
+                            ),
+                            tvar("a"),
+                        ),
+                        tcon("String", vec![]),
+                    )
                 )
             ))
         );

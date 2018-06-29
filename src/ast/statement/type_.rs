@@ -62,11 +62,13 @@ named_args!(type_record_constructor(indentation: u32)<CompleteStr, Type>,
   delimited!(
     char!('{'),
     do_parse!(
-      spaces >>
+      call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
       var: type_variable >>
-      spaces >>
+      call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
       char!('|') >>
+      call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
       record_pairs: call!(type_record_pairs, indentation) >>
+      call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
       (Type::TypeRecordConstructor(Box::new(var), record_pairs))
     ),
     char!('}')
@@ -118,7 +120,11 @@ named_args!(pub type_(indentation: u32)<CompleteStr, Type>,
     | call!(type_record_constructor, indentation)
     | call!(type_record, indentation)
     | call!(type_tuple, indentation)
-    | delimited!(char!('('), call!(type_annotation, indentation), char!(')'))
+    | delimited!(
+        preceded!(char!('('), opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE))),
+        call!(type_annotation, indentation),
+        terminated!(opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)), char!(')'))
+      )
   )
 );
 
@@ -373,6 +379,87 @@ mod tests {
                         ]),
                         Type::TypeVariable("msg".to_string()),
                     ]
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn can_parse_simple_type_record_constructor() {
+        assert_eq!(
+            type_annotation(CompleteStr("{ b | commonErrorName : a }"), 0),
+            Ok((
+                CompleteStr(""),
+                Type::TypeRecordConstructor(
+                    Box::new(tvar("b")),
+                    vec![("commonErrorName".to_string(), tvar("a"))]
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn can_parse_multi_line_type_record_constructor() {
+        assert_eq!(
+            type_annotation(
+                CompleteStr(
+                    "{ b
+        | commonErrorName : a
+        , commonErrorDescription : a
+        , kpiErrorCalculationType : a
+        , kpiErrorAggregationType : a
+     }"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Type::TypeRecordConstructor(
+                    Box::new(tvar("b")),
+                    vec![
+                        ("commonErrorName".to_string(), tvar("a")),
+                        ("commonErrorDescription".to_string(), tvar("a")),
+                        ("kpiErrorCalculationType".to_string(), tvar("a")),
+                        ("kpiErrorAggregationType".to_string(), tvar("a")),
+                    ]
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn can_parse_multi_line_type_record_constructor_in_function() {
+        assert_eq!(
+            type_annotation(
+                CompleteStr(
+                    "({ b
+        | commonErrorName : a
+        , commonErrorDescription : a
+        , kpiErrorCalculationType : a
+        , kpiErrorAggregationType : a
+      }
+      -> a
+     )
+     -> String"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                tapp(
+                    tapp(
+                        Type::TypeRecordConstructor(
+                            Box::new(tvar("b")),
+                            vec![
+                                ("commonErrorName".to_string(), tvar("a")),
+                                ("commonErrorDescription".to_string(), tvar("a")),
+                                ("kpiErrorCalculationType".to_string(), tvar("a")),
+                                ("kpiErrorAggregationType".to_string(), tvar("a")),
+                            ]
+                        ),
+                        tvar("a")
+                    ),
+                    tcon("String", vec![])
                 )
             ))
         );
