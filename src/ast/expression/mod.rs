@@ -1029,6 +1029,35 @@ else
         );
     }
 
+    #[test]
+    fn if_statement_else_if_else() {
+        assert_eq!(
+            if_expression(
+                CompleteStr(
+                    "if a then
+  1
+else if b then
+  2
+else
+  3"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                if_(
+                    bin_op(
+                        var("=="),
+                        Expression::Tuple(vec![var("a"), var("b")]),
+                        Expression::Tuple(vec![int("1"), int("2")])
+                    ),
+                    int("1"),
+                    int("2")
+                )
+            ))
+        );
+    }
+
     // Expressions
 
     #[test]
