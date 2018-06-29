@@ -13,5 +13,6 @@ path = "src/check.rs"
 
 [dependencies]
 nom = { version = "4.0.0", features = ["regexp", "verbose-errors"] }
-# nom = { git = "https://github.com/geal/nom", features = ["verbose-errors"] }
 regex = { version = "^1.0" }
+walkdir = "2"
+clap = "2.32.0"
