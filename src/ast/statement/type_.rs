@@ -1,6 +1,5 @@
-use ast::helpers::{
-    lo_name, spaces, spaces_and_newlines, spaces_or_new_lines_and_indent, up_name, Name, IR,
-};
+use ast::helpers::{lo_name, spaces, spaces_and_newlines, spaces_or_new_lines_and_indent, up_name,
+                   Name, IR};
 use ast::statement::core::Type;
 
 use nom::types::CompleteStr;
