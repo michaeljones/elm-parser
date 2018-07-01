@@ -181,7 +181,7 @@ named_args!(lambda(indentation: u32) <CompleteStr, Expression>,
 named_args!(application_or_var(indentation: u32) <CompleteStr, Expression>,
   map_res!(
       separated_list!(
-          call!(spaces_or_new_lines_and_indent, indentation, IR::GTE),
+          call!(spaces_or_new_lines_and_indent, indentation, IR::GT),
           call!(term, indentation)
       ),
       |v: Vec<Expression>| {
@@ -276,12 +276,12 @@ named_args!(if_expression(indentation: u32) <CompleteStr, Expression>,
        test: call!(expression, indentation) >>
        call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        tag!("then") >>
-       new_indent: call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
-       if_exp: call!(expression, new_indent) >>
+       new_if_indent: call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
+       if_exp: call!(expression, new_if_indent) >>
        call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        tag!("else") >>
-       call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
-       else_exp: call!(expression, new_indent) >>
+       new_else_indent: call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
+       else_exp: call!(expression, new_else_indent) >>
        (Expression::If(Box::new(test), Box::new(if_exp), Box::new(else_exp)))
    )
 );
@@ -1045,15 +1045,7 @@ else
             ),
             Ok((
                 CompleteStr(""),
-                if_(
-                    bin_op(
-                        var("=="),
-                        Expression::Tuple(vec![var("a"), var("b")]),
-                        Expression::Tuple(vec![int("1"), int("2")])
-                    ),
-                    int("1"),
-                    int("2")
-                )
+                if_(var("a"), int("1"), if_(var("b"), int("2"), int("3")))
             ))
         );
     }

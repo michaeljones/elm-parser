@@ -86,28 +86,39 @@ pub enum IR {
     GTE,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum SpacesContent {
+    Spaces,
+    Comment,
+    NewLineAndSpaces,
+}
+
 named_args!(pub spaces_or_new_lines_and_indent(indentation: u32, ir: IR) <CompleteStr, u32>,
   map_res!(
     many1!(
       alt!(
-          map!(spaces, |s| vec![indentation + s.len() as u32 ])
-        | map!(single_line_comment, |_| vec![0])
+          map!(spaces, |s| vec![(SpacesContent::Spaces, indentation)])
+        | map!(single_line_comment, |_| vec![(SpacesContent::Comment, 0)])
         | many1!(
             preceded!(
               char!('\n'),
               alt!(
-                  map!(spaces0, |s| s.len() as u32)
-                | map!(single_line_comment, |_| 0)
+                  map!(spaces0, |s| (SpacesContent::NewLineAndSpaces, s.len() as u32))
+                | map!(single_line_comment, |_| (SpacesContent::Comment, 0))
               )
             )
           )
       )
     ),
-    |v: Vec<Vec<u32>>| {
-        let new_indent = *(v.last().unwrap_or(&vec![]).last().unwrap_or(&0));
+    |v: Vec<Vec<(SpacesContent, u32)>>| {
+        let (_, new_indent) = *(v.last().unwrap_or(&vec![]).last().unwrap_or(&(SpacesContent::Spaces, 0)));
+        let has_new_line = v.iter().any(|ref subv| subv.iter().any(|(ref content, _)| *content == SpacesContent::NewLineAndSpaces));
+
+        // Only apply test if there have been new lines - otherwise we've just had some spaces or
+        // comments and there isn't any new indentation to test
         match ir {
             IR::EQ => {
-                if new_indent == indentation {
+                if !has_new_line || new_indent == indentation {
                     Ok(new_indent)
                 }
                 else {
@@ -115,7 +126,7 @@ named_args!(pub spaces_or_new_lines_and_indent(indentation: u32, ir: IR) <Comple
                 }
             },
             IR::GT => {
-                if new_indent > indentation {
+                if !has_new_line || new_indent > indentation {
                     Ok(new_indent)
                 }
                 else {
@@ -123,7 +134,7 @@ named_args!(pub spaces_or_new_lines_and_indent(indentation: u32, ir: IR) <Comple
                 }
             },
             IR::GTE => {
-                if new_indent >= indentation {
+                if !has_new_line || new_indent >= indentation {
                     Ok(new_indent)
                 }
                 else {
@@ -187,7 +198,7 @@ mod tests {
     fn just_spaces() {
         assert_eq!(
             spaces_or_new_lines_and_indent(CompleteStr("   "), 1, IR::GTE),
-            Ok((CompleteStr(""), 4))
+            Ok((CompleteStr(""), 1))
         );
     }
 
