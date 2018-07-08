@@ -30,7 +30,7 @@ named!(pub lo_name<CompleteStr, String>,
             }
         }
       )
-  ) 
+  )
 );
 
 named!(pub function_name<CompleteStr, String>,
@@ -153,6 +153,25 @@ named_args!(pub opt_spaces_or_new_lines_and_indent(indentation: u32, ir: IR) <Co
             v.unwrap_or(indentation)
         }
     )
+);
+
+named_args!(pub new_line_and_same_indent(indentation: u32) <CompleteStr, u32>,
+  map_res!(
+    preceded!(
+      char!('\n'),
+      alt!(
+          map!(spaces0, |s| s.len() as u32)
+      )
+    ),
+    |new_indent: u32| {
+        if new_indent == indentation {
+            Ok(new_indent)
+        }
+        else {
+            Err("Indent does not match".to_string())
+        }
+    }
+  )
 );
 
 #[cfg(test)]

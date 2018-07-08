@@ -1,13 +1,11 @@
-
 pub mod core;
 
-use ast::helpers::{lo_name, spaces_and_newlines, spaces_or_new_lines_and_indent, up_name,
-                   Name, IR};
-
+use ast::helpers::{
+    lo_name, spaces_and_newlines, spaces_or_new_lines_and_indent, up_name, Name, IR,
+};
 use ast::type_::core::Type;
 
 use nom::types::CompleteStr;
-
 
 named!(type_variable<CompleteStr, Type>,
   map!(re_matches!(r#"^([a-z][a-z1-9_]*)"#), |c| Type::TypeVariable(c[0].to_string()))

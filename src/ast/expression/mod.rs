@@ -1,23 +1,27 @@
 mod access;
 mod access_function;
 mod character;
-mod core;
+pub mod core;
 mod float;
+pub mod function;
 mod integer;
 mod string;
 mod variable;
 
 pub use ast::expression::core::Expression;
+use ast::expression::core::{Function, FunctionDefinition, FunctionSignature, LetEntry};
 
 use ast::expression::access::access;
 use ast::expression::access_function::access_function;
 use ast::expression::character::character;
 use ast::expression::float::float;
+use ast::expression::function::function;
 use ast::expression::integer::integer;
 use ast::expression::string::string;
 use ast::expression::variable::variable;
-use ast::helpers::{lo_name, operator, opt_spaces_or_new_lines_and_indent,
-spaces_or_new_lines_and_indent, IR};
+use ast::helpers::{
+    lo_name, operator, opt_spaces_or_new_lines_and_indent, spaces_or_new_lines_and_indent, IR,
+};
 
 // use nom;
 use nom::types::CompleteStr;
@@ -205,21 +209,33 @@ named_args!(application_or_var(indentation: u32) <CompleteStr, Expression>,
 
 // Let Expression
 
-named_args!(let_binding(indentation: u32) <CompleteStr, (Expression, Expression)>,
+named_args!(let_binding_target(indentation: u32) <CompleteStr, Expression>,
+  alt!(
+      variable
+    | call!(list, indentation)
+    | call!(tuple, indentation)
+    | call!(simplified_record, indentation)
+  )
+);
+
+named_args!(let_binding(indentation: u32) <CompleteStr, LetEntry>,
    do_parse!(
-       binding: call!(expression, indentation) >>
+       binding: call!(let_binding_target, indentation) >>
        call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        char!('=') >>
        new_indent: call!(spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
        expression: call!(expression, new_indent) >>
-       (binding, expression)
+       (LetEntry::LetBinding(binding, expression))
    )
 );
 
-named_args!(let_bindings(indentation: u32) <CompleteStr, Vec<(Expression, Expression)>>,
+named_args!(let_bindings(indentation: u32) <CompleteStr, Vec<LetEntry>>,
     separated_nonempty_list!(
         call!(spaces_or_new_lines_and_indent, indentation, IR::EQ),
-        call!(let_binding, indentation)
+        alt!(
+            call!(let_binding, indentation)
+          | map!(call!(function, indentation), LetEntry::LetFunction)
+        )
     )
 );
 
@@ -338,6 +354,8 @@ named_args!(pub expression(indentation: u32) <CompleteStr, Expression>,
 mod tests {
 
     use ast::expression::*;
+    use ast::type_::core::Type;
+
     use nom::types::CompleteStr;
 
     fn var(name: &str) -> Expression {
@@ -358,6 +376,14 @@ mod tests {
 
     fn if_(test: Expression, if_exp: Expression, else_exp: Expression) -> Expression {
         Expression::If(Box::new(test), Box::new(if_exp), Box::new(else_exp))
+    }
+
+    fn tapp(a: Type, b: Type) -> Type {
+        Type::TypeApplication(Box::new(a), Box::new(b))
+    }
+
+    fn tcon(name: &str, v: Vec<Type>) -> Type {
+        Type::TypeConstructor(vec![name.to_string()], v)
     }
 
     // Tuples
@@ -701,16 +727,18 @@ mod tests {
     #[test]
     fn record_update_with_comment() {
         assert_eq!(
-            record_update(CompleteStr("{ a
+            record_update(
+                CompleteStr(
+                    "{ a
                       -- Comment about something
                         | b = 1
-                    }"), 0),
+                    }"
+                ),
+                0
+            ),
             Ok((
                 CompleteStr(""),
-                Expression::RecordUpdate(
-                    "a".to_string(),
-                    vec![("b".to_string(), int("1"))],
-                )
+                Expression::RecordUpdate("a".to_string(), vec![("b".to_string(), int("1"))],)
             ))
         );
     }
@@ -748,7 +776,7 @@ mod tests {
     fn let_single_binding() {
         assert_eq!(
             let_binding(CompleteStr("a = 42"), 0),
-            Ok((CompleteStr(""), (var("a"), int("42"))))
+            Ok((CompleteStr(""), LetEntry::LetBinding(var("a"), int("42"))))
         );
     }
 
@@ -756,7 +784,77 @@ mod tests {
     fn let_group_single_binding() {
         assert_eq!(
             let_bindings(CompleteStr("a = 42"), 0),
-            Ok((CompleteStr(""), vec![(var("a"), int("42"))]))
+            Ok((
+                CompleteStr(""),
+                vec![LetEntry::LetBinding(var("a"), int("42"))]
+            ))
+        );
+    }
+
+    #[test]
+    fn let_group_single_function() {
+        assert_eq!(
+            let_bindings(CompleteStr("a b = 42"), 0),
+            Ok((
+                CompleteStr(""),
+                vec![LetEntry::LetFunction(Function {
+                    signature: None,
+                    definition: FunctionDefinition {
+                        name: "a".to_string(),
+                        args: vec![var("b")],
+                        body: int("42"),
+                    },
+                })]
+            ))
+        );
+    }
+
+    #[test]
+    fn let_group_single_function_and_signature() {
+        assert_eq!(
+            let_bindings(CompleteStr("a : Int -> Int\na b = 42"), 0),
+            Ok((
+                CompleteStr(""),
+                vec![LetEntry::LetFunction(Function {
+                    signature: Some(FunctionSignature {
+                        name: "a".to_string(),
+                        type_: tapp(tcon("Int", vec![]), tcon("Int", vec![])),
+                    }),
+                    definition: FunctionDefinition {
+                        name: "a".to_string(),
+                        args: vec![var("b")],
+                        body: int("42"),
+                    },
+                })]
+            ))
+        );
+    }
+
+    #[test]
+    fn let_group_two_functions() {
+        assert_eq!(
+            let_bindings(CompleteStr("a b = 42\nc d = 24"), 0),
+            Ok((
+                CompleteStr(""),
+                vec![
+                    LetEntry::LetFunction(Function {
+                        signature: None,
+                        definition: FunctionDefinition {
+                            name: "a".to_string(),
+                            args: vec![var("b")],
+                            body: int("42"),
+                        },
+                    }),
+                    LetEntry::LetFunction(Function {
+                        signature: None,
+                        definition: FunctionDefinition {
+                            name: "c".to_string(),
+                            args: vec![var("d")],
+                            body: int("24"),
+                        },
+                    }),
+                ]
+            ))
         );
     }
 
@@ -766,7 +864,10 @@ mod tests {
             let_expression(CompleteStr("let a = 42 in a"), 0),
             Ok((
                 CompleteStr(""),
-                Expression::Let(vec![(var("a"), int("42"))], Box::new(var("a")))
+                Expression::Let(
+                    vec![LetEntry::LetBinding(var("a"), int("42"))],
+                    Box::new(var("a"))
+                )
             ))
         );
     }
@@ -777,7 +878,10 @@ mod tests {
             let_expression(CompleteStr("let _ = 42 in 24"), 0),
             Ok((
                 CompleteStr(""),
-                Expression::Let(vec![(var("_"), int("42"))], Box::new(int("24")))
+                Expression::Let(
+                    vec![LetEntry::LetBinding(var("_"), int("42"))],
+                    Box::new(int("24"))
+                )
             ))
         );
     }
@@ -788,7 +892,10 @@ mod tests {
             let_expression(CompleteStr("let letter = 1 \n in letter"), 0),
             Ok((
                 CompleteStr(""),
-                Expression::Let(vec![(var("letter"), int("1"))], Box::new(var("letter")))
+                Expression::Let(
+                    vec![LetEntry::LetBinding(var("letter"), int("1"))],
+                    Box::new(var("letter"))
+                )
             ))
         );
     }
@@ -808,14 +915,14 @@ in
             Ok((
                 CompleteStr(""),
                 Expression::Let(
-                    vec![(
-                        application(var("f"), var("x")),
-                        Expression::BinOp(
-                            Box::new(var("+")),
-                            Box::new(var("x")),
-                            Box::new(int("1")),
-                        ),
-                    )],
+                    vec![LetEntry::LetFunction(Function {
+                        signature: None,
+                        definition: FunctionDefinition {
+                            name: "f".to_string(),
+                            args: vec![var("x")],
+                            body: bin_op(var("+"), var("x"), int("1")),
+                        },
+                    })],
                     Box::new(application(var("f"), int("4")))
                 )
             ))
@@ -839,22 +946,22 @@ in
                 CompleteStr(""),
                 Expression::Let(
                     vec![
-                        (
-                            application(var("f"), var("x")),
-                            Expression::BinOp(
-                                Box::new(var("+")),
-                                Box::new(var("x")),
-                                Box::new(int("1")),
-                            ),
-                        ),
-                        (
-                            application(var("g"), var("x")),
-                            Expression::BinOp(
-                                Box::new(var("+")),
-                                Box::new(var("x")),
-                                Box::new(int("1")),
-                            ),
-                        ),
+                        LetEntry::LetFunction(Function {
+                            signature: None,
+                            definition: FunctionDefinition {
+                                name: "f".to_string(),
+                                args: vec![var("x")],
+                                body: bin_op(var("+"), var("x"), int("1")),
+                            },
+                        }),
+                        LetEntry::LetFunction(Function {
+                            signature: None,
+                            definition: FunctionDefinition {
+                                name: "g".to_string(),
+                                args: vec![var("x")],
+                                body: bin_op(var("+"), var("x"), int("1")),
+                            },
+                        }),
                     ],
                     Box::new(application(var("f"), int("4")))
                 )
@@ -879,17 +986,63 @@ in
                 CompleteStr(""),
                 Expression::Let(
                     vec![
-                        (var("a"), int("42")),
-                        (
-                            var("b"),
-                            Expression::BinOp(
-                                Box::new(var("+")),
-                                Box::new(var("a")),
-                                Box::new(int("1")),
-                            ),
-                        ),
+                        LetEntry::LetBinding(var("a"), int("42")),
+                        LetEntry::LetBinding(var("b"), bin_op(var("+"), var("a"), int("1"))),
                     ],
                     Box::new(var("b"))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn let_block_function_with_function_signature() {
+        assert_eq!(
+            let_expression(
+                CompleteStr(
+                    "let
+ f : Int -> Int
+ f x = x + 1
+in
+ f 4"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                Expression::Let(
+                    vec![LetEntry::LetFunction(Function {
+                        signature: Some(FunctionSignature {
+                            name: "f".to_string(),
+                            type_: tapp(
+                                tcon("Int", vec![]),
+                                tcon("Int", vec![]),
+                            ),
+                        }),
+                        definition: FunctionDefinition {
+                            name: "f".to_string(),
+                            args: vec![var("x")],
+                            body: bin_op(var("+"), var("x"), int("1")),
+                        },
+                    })],
+                    Box::new(application(var("f"), int("4")))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn let_block_destructuring() {
+        assert_eq!(
+            expression(CompleteStr("let (a,b) = (1,2) in a"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::Let(
+                    vec![LetEntry::LetBinding(
+                        Expression::Tuple(vec![var("a"), var("b")]),
+                        Expression::Tuple(vec![int("1"), int("2")]),
+                    )],
+                    Box::new(var("a")),
                 )
             ))
         );
@@ -1120,23 +1273,6 @@ else
                 Expression::Lambda(
                     vec![Expression::Tuple(vec![var("a"), var("b")]), var("acc")],
                     Box::new(int("1")),
-                )
-            ))
-        );
-    }
-
-    #[test]
-    fn let_block_destructuring() {
-        assert_eq!(
-            expression(CompleteStr("let (a,b) = (1,2) in a"), 0),
-            Ok((
-                CompleteStr(""),
-                Expression::Let(
-                    vec![(
-                        Expression::Tuple(vec![var("a"), var("b")]),
-                        Expression::Tuple(vec![int("1"), int("2")]),
-                    )],
-                    Box::new(var("a")),
                 )
             ))
         );

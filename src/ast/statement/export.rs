@@ -1,5 +1,6 @@
-use ast::helpers::{function_name, operator, spaces_and_newlines, spaces_or_new_lines_and_indent,
-                   up_name, IR};
+use ast::helpers::{
+    function_name, operator, spaces_and_newlines, spaces_or_new_lines_and_indent, up_name, IR,
+};
 use ast::statement::core::ExportSet;
 
 use nom::types::CompleteStr;
