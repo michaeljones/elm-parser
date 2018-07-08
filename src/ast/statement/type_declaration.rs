@@ -1,6 +1,6 @@
 use ast::helpers::{spaces, spaces_or_new_lines_and_indent, IR};
 use ast::statement::core::Statement;
-use ast::statement::type_::{type_, type_annotation, type_constructor};
+use ast::type_::{type_, type_annotation, type_constructor};
 
 use nom::types::CompleteStr;
 
@@ -40,6 +40,7 @@ mod tests {
 
     use ast::statement::core::*;
     use ast::statement::type_declaration::*;
+    use ast::type_::core::Type;
     use nom::types::CompleteStr;
 
     fn tvar(name: &str) -> Type {

@@ -1,8 +1,13 @@
-use ast::helpers::{lo_name, spaces, spaces_and_newlines, spaces_or_new_lines_and_indent, up_name,
+
+pub mod core;
+
+use ast::helpers::{lo_name, spaces_and_newlines, spaces_or_new_lines_and_indent, up_name,
                    Name, IR};
-use ast::statement::core::Type;
+
+use ast::type_::core::Type;
 
 use nom::types::CompleteStr;
+
 
 named!(type_variable<CompleteStr, Type>,
   map!(re_matches!(r#"^([a-z][a-z1-9_]*)"#), |c| Type::TypeVariable(c[0].to_string()))
@@ -163,8 +168,8 @@ named_args!(pub type_annotation(indentation: u32)<CompleteStr, Type>,
 #[cfg(test)]
 mod tests {
 
-    use ast::statement::core::*;
-    use ast::statement::type_::*;
+    use ast::type_::core::Type;
+    use ast::type_::type_annotation;
     use nom::types::CompleteStr;
 
     fn tvar(name: &str) -> Type {

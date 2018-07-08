@@ -9,7 +9,6 @@ mod import;
 mod infix;
 mod module;
 mod port;
-mod type_;
 mod type_declaration;
 
 use ast::statement::comment::comment;
@@ -60,12 +59,11 @@ mod tests {
     fn simple_statements() {
         assert!(
             statements(CompleteStr(
-                "
-module Test exposing (..)
+                "module Test exposing (..)
 
-f : Int
-f =
-  1
+main : Program Flags Model Msg
+main =
+    myProgram
 "
             )).is_ok()
         );

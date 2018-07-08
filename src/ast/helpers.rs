@@ -97,7 +97,7 @@ named_args!(pub spaces_or_new_lines_and_indent(indentation: u32, ir: IR) <Comple
   map_res!(
     many1!(
       alt!(
-          map!(spaces, |s| vec![(SpacesContent::Spaces, indentation)])
+          value!(vec![(SpacesContent::Spaces, indentation)], spaces)
         | map!(single_line_comment, |_| vec![(SpacesContent::Comment, 0)])
         | many1!(
             preceded!(
@@ -144,6 +144,15 @@ named_args!(pub spaces_or_new_lines_and_indent(indentation: u32, ir: IR) <Comple
         }
     }
   )
+);
+
+named_args!(pub opt_spaces_or_new_lines_and_indent(indentation: u32, ir: IR) <CompleteStr, u32>,
+    map!(
+        opt!(call!(spaces_or_new_lines_and_indent, indentation, ir)),
+        |v| {
+            v.unwrap_or(indentation)
+        }
+    )
 );
 
 #[cfg(test)]
@@ -199,6 +208,22 @@ mod tests {
         assert_eq!(
             spaces_or_new_lines_and_indent(CompleteStr("   "), 1, IR::GTE),
             Ok((CompleteStr(""), 1))
+        );
+    }
+
+    #[test]
+    fn opt_just_spaces() {
+        assert_eq!(
+            opt_spaces_or_new_lines_and_indent(CompleteStr("   "), 1, IR::GTE),
+            Ok((CompleteStr(""), 1))
+        );
+    }
+
+    #[test]
+    fn opt_no_spaces() {
+        assert_eq!(
+            opt_spaces_or_new_lines_and_indent(CompleteStr(""), 2, IR::GTE),
+            Ok((CompleteStr(""), 2))
         );
     }
 

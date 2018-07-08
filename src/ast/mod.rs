@@ -4,6 +4,7 @@ pub mod binop;
 pub mod expression;
 pub mod helpers;
 pub mod statement;
+pub mod type_;
 
 use ast::statement::statements;
 pub use ast::statement::{ExportSet, Statement};

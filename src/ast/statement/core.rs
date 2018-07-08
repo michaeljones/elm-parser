@@ -1,6 +1,7 @@
 use ast::binop::Assoc;
 use ast::expression::Expression;
-use ast::helpers::{Alias, ModuleName, Name, QualifiedType};
+use ast::type_::core::Type;
+use ast::helpers::{Alias, ModuleName, Name};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExportSet {
@@ -8,16 +9,6 @@ pub enum ExportSet {
     SubsetExport(Vec<ExportSet>),
     FunctionExport(Name),
     TypeExport(Name, Option<Box<ExportSet>>),
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Type {
-    TypeConstructor(QualifiedType, Vec<Type>),
-    TypeVariable(Name),
-    TypeRecordConstructor(Box<Type>, Vec<(Name, Type)>),
-    TypeRecord(Vec<(Name, Type)>),
-    TypeTuple(Vec<Type>),
-    TypeApplication(Box<Type>, Box<Type>),
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -16,7 +16,8 @@ use ast::expression::float::float;
 use ast::expression::integer::integer;
 use ast::expression::string::string;
 use ast::expression::variable::variable;
-use ast::helpers::{lo_name, operator, spaces_or_new_lines_and_indent, IR};
+use ast::helpers::{lo_name, operator, opt_spaces_or_new_lines_and_indent,
+spaces_or_new_lines_and_indent, IR};
 
 // use nom;
 use nom::types::CompleteStr;
@@ -108,29 +109,30 @@ named_args!(simplified_record(indentation: u32) <CompleteStr, Expression>,
 
 named_args!(record_update(indentation: u32) <CompleteStr, Expression>,
   delimited!(
-    char!('{'),
+    preceded!(char!('{'), call!(opt_spaces_or_new_lines_and_indent, indentation, IR::GTE)),
     do_parse!(
-      multispace0 >>
       name: lo_name >>
-      multispace0 >>
+      call!(opt_spaces_or_new_lines_and_indent, indentation, IR::GTE) >>
       char!('|') >>
       multispace0 >>
       pairs: separated_list!(
-        char!(','),
+        delimited!(
+            call!(opt_spaces_or_new_lines_and_indent, indentation, IR::GTE),
+            char!(','),
+            call!(opt_spaces_or_new_lines_and_indent, indentation, IR::GTE)
+        ),
         do_parse!(
-          multispace0 >>
           name: lo_name >>
           multispace0 >>
           char!('=') >>
           multispace0 >>
           expression: call!(expression, indentation) >>
-          multispace0 >>
           ((name, expression))
         )
       ) >>
       (Expression::RecordUpdate(name.to_string(), pairs))
     ),
-    char!('}')
+    terminated!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE), char!('}'))
   )
 );
 
@@ -691,6 +693,23 @@ mod tests {
                 Expression::RecordUpdate(
                     "a".to_string(),
                     vec![("a".to_string(), application(var("Just"), int("2")))],
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn record_update_with_comment() {
+        assert_eq!(
+            record_update(CompleteStr("{ a
+                      -- Comment about something
+                        | b = 1
+                    }"), 0),
+            Ok((
+                CompleteStr(""),
+                Expression::RecordUpdate(
+                    "a".to_string(),
+                    vec![("b".to_string(), int("1"))],
                 )
             ))
         );
