@@ -105,7 +105,7 @@ named_args!(pub type_constructor(indentation: u32)<CompleteStr, Type>,
     ) >>
     second: many0!(
       preceded!(
-        call!(spaces_or_new_lines_and_indent, indentation, IR::GTE),
+        call!(spaces_or_new_lines_and_indent, indentation, IR::GT),
         call!(type_parameter, indentation)
       )
     ) >>
