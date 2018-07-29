@@ -1014,10 +1014,7 @@ in
                     vec![LetEntry::LetFunction(Function {
                         signature: Some(FunctionSignature {
                             name: "f".to_string(),
-                            type_: tapp(
-                                tcon("Int", vec![]),
-                                tcon("Int", vec![]),
-                            ),
+                            type_: tapp(tcon("Int", vec![]), tcon("Int", vec![])),
                         }),
                         definition: FunctionDefinition {
                             name: "f".to_string(),

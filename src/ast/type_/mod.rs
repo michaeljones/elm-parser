@@ -96,7 +96,11 @@ named_args!(type_parameter(indentation: u32)<CompleteStr, Type>,
     | call!(type_record_constructor, indentation)
     | call!(type_record, indentation)
     | call!(type_tuple, indentation)
-    | delimited!(char!('('), call!(type_annotation, indentation), char!(')'))
+    | delimited!(
+        preceded!(char!('('), opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE))),
+        call!(type_annotation, indentation),
+        terminated!(opt!(call!(spaces_or_new_lines_and_indent, indentation, IR::GTE)), char!(')'))
+      )
   )
 );
 
@@ -107,9 +111,10 @@ named_args!(pub type_constructor(indentation: u32)<CompleteStr, Type>,
       up_name
     ) >>
     second: many0!(
-      preceded!(
-        call!(spaces_or_new_lines_and_indent, indentation, IR::GT),
-        call!(type_parameter, indentation)
+      do_parse!(
+        new_indent: call!(spaces_or_new_lines_and_indent, indentation, IR::GT) >>
+        type_: call!(type_parameter, new_indent) >>
+        (type_)
       )
     ) >>
     (Type::TypeConstructor(first, second))
@@ -463,6 +468,33 @@ mod tests {
                         tvar("a")
                     ),
                     tcon("String", vec![])
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn multi_line_with_parens() {
+        assert_eq!(
+            type_annotation(
+                CompleteStr(
+                    "List
+    ({ viewReportPage : String } -> String
+    )"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                tcon(
+                    "List",
+                    vec![tapp(
+                        Type::TypeRecord(vec![(
+                            "viewReportPage".to_string(),
+                            tcon("String", vec![]),
+                        )]),
+                        tcon("String", vec![]),
+                    )]
                 )
             ))
         );

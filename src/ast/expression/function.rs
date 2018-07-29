@@ -231,6 +231,37 @@ mod tests {
     }
 
     #[test]
+    fn multi_line_function_type_with_parens() {
+        assert_eq!(
+            function_signature(
+                CompleteStr(
+                    "classes :
+    List
+        ({ viewReportPage : String } -> String
+        )"
+                ),
+                0
+            ),
+            Ok((
+                CompleteStr(""),
+                FunctionSignature {
+                    name: "classes".to_string(),
+                    type_: tcon(
+                        "List",
+                        vec![tapp(
+                            Type::TypeRecord(vec![(
+                                "viewReportPage".to_string(),
+                                tcon("String", vec![]),
+                            )]),
+                            tcon("String", vec![]),
+                        )]
+                    ),
+                }
+            ))
+        );
+    }
+
+    #[test]
     fn function_with_signature() {
         assert_eq!(
             function(CompleteStr("f : Int -> Int\nf x = a \n c"), 0),
