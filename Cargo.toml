@@ -7,10 +7,6 @@ authors = ["Michael Jones <michael@zaptic.com>"]
 name = "elm-parser-dump"
 path = "src/dump.rs"
 
-[[bin]]
-name = "elm-parser-check"
-path = "src/check.rs"
-
 [dependencies]
 nom = { version = "4.0.0", features = ["regexp", "verbose-errors"] }
 regex = { version = "^1.0" }
