@@ -5,7 +5,6 @@ extern crate regex;
 extern crate walkdir;
 
 use clap::{App, Arg};
-use nom::types::CompleteStr;
 use walkdir::WalkDir;
 
 use std::env;
