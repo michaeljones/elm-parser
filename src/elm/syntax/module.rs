@@ -1,9 +1,8 @@
-
 use super::modulename::ModuleName;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Module {
-    pub name: ModuleName
+    pub name: ModuleName,
 }
 
 /*

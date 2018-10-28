@@ -1,7 +1,6 @@
-
 use combine::error::ParseError;
+use combine::parser::char::{space, spaces, string};
 use combine::{Parser, Stream};
-use combine::parser::char::{string, space, spaces};
 
 use elm::syntax::module::Module;
 
@@ -17,19 +16,24 @@ where
         .skip(space())
         .skip(spaces())
         .skip(string("exposing (..)"))
-        .map(|name| Module { name : vec![name.to_string()] } )
+        .map(|name| Module {
+            name: vec![name.to_string()],
+        })
 }
 
 #[cfg(test)]
 mod tests {
 
-    use elm::parser::modules::module_definition;
     use combine::Parser;
+    use elm::parser::modules::module_definition;
 
     #[test]
     fn simple() {
-        let result = module_definition().parse("module Test exposing (..)");
-        assert!(result.is_ok());
+        assert!(
+            module_definition()
+                .parse("module Test exposing (..)")
+                .is_ok()
+        );
     }
 }
 
