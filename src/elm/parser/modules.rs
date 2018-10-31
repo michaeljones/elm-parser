@@ -2,7 +2,9 @@ use combine::error::ParseError;
 use combine::parser::char::{space, spaces, string};
 use combine::{Parser, Stream};
 
-use elm::syntax::module::Module;
+use super::base::module_name;
+use elm::syntax::exposing::Exposing;
+use elm::syntax::module::{DefaultModuleData, Module};
 
 pub fn module_definition<I>() -> impl Parser<Input = I, Output = Module>
 where
@@ -12,27 +14,49 @@ where
     string("module")
         .skip(space())
         .skip(spaces())
-        .with(string("Test"))
+        .with(module_name())
         .skip(space())
         .skip(spaces())
         .skip(string("exposing (..)"))
-        .map(|name| Module {
-            name: vec![name.to_string()],
-        })
+        .map(|name| DefaultModuleData {
+            module_name: name,
+            exposing_list: Exposing::All,
+        }).map(Module::NormalModule)
 }
 
 #[cfg(test)]
 mod tests {
 
+    use super::module_definition;
     use combine::Parser;
-    use elm::parser::modules::module_definition;
+    use elm::syntax::exposing::Exposing;
+    use elm::syntax::module::*;
 
     #[test]
-    fn simple() {
-        assert!(
-            module_definition()
-                .parse("module Test exposing (..)")
-                .is_ok()
+    fn simple_1() {
+        assert_eq!(
+            module_definition().parse("module Test exposing (..)"),
+            Ok((
+                Module::NormalModule(DefaultModuleData {
+                    module_name: vec!["Test".to_string()],
+                    exposing_list: Exposing::All
+                }),
+                ""
+            ))
+        );
+    }
+
+    #[test]
+    fn simple_2() {
+        assert_eq!(
+            module_definition().parse("module Ab.Cd.Ef exposing (..)"),
+            Ok((
+                Module::NormalModule(DefaultModuleData {
+                    module_name: vec!["Ab".to_string(), "Cd".to_string(), "Ef".to_string()],
+                    exposing_list: Exposing::All
+                }),
+                ""
+            ))
         );
     }
 }

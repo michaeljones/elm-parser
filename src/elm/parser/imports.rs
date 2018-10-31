@@ -1,8 +1,11 @@
-/*
 use combine::error::ParseError;
 use combine::parser::char::{space, spaces, string};
 use combine::{Parser, Stream};
 
+use super::base::module_name;
+use super::expose::expose_definition;
+use super::tokens::import_token;
+use elm::syntax::exposing::Exposing;
 use elm::syntax::import::Import;
 
 pub fn import_definition<I>() -> impl Parser<Input = I, Output = Import>
@@ -10,15 +13,17 @@ where
     I: Stream<Item = char>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    string("import")
+    import_token()
         .skip(space())
         .skip(spaces())
-        .with(string("Test"))
+        .with(module_name())
         .skip(space())
         .skip(spaces())
         .skip(string("exposing (..)"))
         .map(|name| Import {
-            module_name: vec![name.to_string()],
+            module_name: name,
+            module_alias: None,
+            exposing_list: Some(Exposing::All),
         })
 }
 
@@ -30,11 +35,19 @@ mod tests {
 
     #[test]
     fn simple() {
-        let result = import_definition().parse("module Test exposing (..)");
-        assert!(result.is_ok());
+        assert_eq!(
+            import_definition().parse("import Test exposing (..)"),
+            Ok((
+                Import {
+                    module_name: vec!["Test".to_string()],
+                    module_alias: None,
+                    exposing_list: Some(Exposing::All),
+                },
+                ""
+            ))
+        )
     }
 }
-*/
 
 /*
 module Elm.Parser.Imports exposing (importDefinition)

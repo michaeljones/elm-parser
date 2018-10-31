@@ -1,8 +1,25 @@
+use super::exposing::Exposing;
 use super::modulename::ModuleName;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Module {
-    pub name: ModuleName,
+pub enum Module {
+    NormalModule(DefaultModuleData),
+    PortModule(DefaultModuleData),
+    EffectModule(EffectModuleData),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct DefaultModuleData {
+    pub module_name: ModuleName,
+    pub exposing_list: Exposing,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct EffectModuleData {
+    pub module_name: ModuleName,
+    pub exposing_list: Exposing,
+    pub command: String,
+    pub subscription: String,
 }
 
 /*

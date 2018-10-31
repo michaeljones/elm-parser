@@ -1,5 +1,5 @@
 use combine::many;
-use combine::parser::char::{alpha_num, upper};
+use combine::parser::char::{alpha_num, lower, string, upper};
 use combine::ParseError;
 use combine::{Parser, Stream};
 
@@ -16,15 +16,49 @@ where
         })
 }
 
+pub fn function_name<I>() -> impl Parser<Input = I, Output = String>
+where
+    I: Stream<Item = char>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    lower()
+        .and(many(alpha_num()))
+        .map(|(first, mut rest): (char, Vec<char>)| {
+            rest.insert(0, first);
+            rest.into_iter().collect()
+        })
+}
+
+pub fn exposing_token<I>() -> impl Parser<Input = I, Output = &'static str>
+where
+    I: Stream<Item = char>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    string("exposing")
+}
+
+pub fn import_token<I>() -> impl Parser<Input = I, Output = &'static str>
+where
+    I: Stream<Item = char>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    string("import")
+}
+
 #[cfg(test)]
 mod tests {
 
-    use super::type_name;
+    use super::*;
     use combine::Parser;
 
     #[test]
     fn type_name_simple() {
         assert_eq!(type_name().parse("Abc"), Ok(("Abc".to_string(), "")));
+    }
+
+    #[test]
+    fn function_name_simple() {
+        assert_eq!(function_name().parse("abC1"), Ok(("abC1".to_string(), "")));
     }
 }
 
