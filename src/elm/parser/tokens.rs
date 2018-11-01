@@ -45,6 +45,14 @@ where
     string("import")
 }
 
+pub fn as_token<I>() -> impl Parser<Input = I, Output = &'static str>
+where
+    I: Stream<Item = char>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    string("as")
+}
+
 #[cfg(test)]
 mod tests {
 

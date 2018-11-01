@@ -4,7 +4,7 @@ use super::modulename::ModuleName;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Import {
     pub module_name: ModuleName,
-    pub module_alias: Option<ModuleName>,
+    pub module_alias: Option<String>,
     pub exposing_list: Option<Exposing>,
 }
 

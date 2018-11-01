@@ -1,6 +1,6 @@
 use combine::error::ParseError;
-use combine::parser::char::char;
-use combine::{sep_by1, Parser, Stream};
+use combine::parser::char::{char, space, spaces, string};
+use combine::{between, sep_by1, Parser, Stream};
 
 use elm::syntax::modulename::ModuleName;
 
@@ -14,6 +14,14 @@ where
     sep_by1(type_name(), char('.'))
 }
 
+pub fn spaces1<I>() -> impl Parser<Input = I, Output = ()>
+where
+    I: Stream<Item = char>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    space().with(spaces())
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -21,7 +29,7 @@ mod tests {
     use combine::Parser;
 
     #[test]
-    fn simple() {
+    fn module_name_1() {
         assert_eq!(
             module_name().parse("Aaa.Bb.Cd"),
             Ok((

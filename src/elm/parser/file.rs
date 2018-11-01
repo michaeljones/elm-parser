@@ -1,16 +1,17 @@
 use combine::error::ParseError;
-use combine::{Parser, Stream};
+use combine::{Parser, RangeStream};
 
 use elm::parser::modules::module_definition;
 use elm::syntax::file::File;
 
-pub fn file<I>() -> impl Parser<Input = I, Output = File>
+pub fn file<'a, I>() -> impl Parser<Input = I, Output = File> + 'a
 where
-    I: Stream<Item = char>,
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    module_definition().map(|module| File {
-        module_definition: module,
+    struct_parser!(File {
+        module_definition: module_definition()
     })
 }
 

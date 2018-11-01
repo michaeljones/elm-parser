@@ -1,30 +1,27 @@
 use combine::error::ParseError;
 use combine::parser::char::{space, spaces, string};
-use combine::{Parser, Stream};
+use combine::{optional, Parser, RangeStream};
 
-use super::base::module_name;
+use super::base::{module_name, spaces1};
 use super::expose::expose_definition;
-use super::tokens::import_token;
+use super::tokens::{as_token, import_token, type_name};
 use elm::syntax::exposing::Exposing;
 use elm::syntax::import::Import;
 
-pub fn import_definition<I>() -> impl Parser<Input = I, Output = Import>
+pub fn import_definition<'a, I>() -> impl Parser<Input = I, Output = Import> + 'a
 where
-    I: Stream<Item = char>,
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    import_token()
-        .skip(space())
-        .skip(spaces())
-        .with(module_name())
-        .skip(space())
-        .skip(spaces())
-        .skip(string("exposing (..)"))
-        .map(|name| Import {
-            module_name: name,
-            module_alias: None,
-            exposing_list: Some(Exposing::All),
-        })
+    let as_definition = as_token().skip(spaces1()).with(type_name());
+
+    struct_parser!(Import {
+        _: import_token().skip(spaces1()),
+        module_name: module_name().skip(spaces1()),
+        module_alias: optional(as_definition.skip(spaces1())),
+        exposing_list: optional(expose_definition())
+    })
 }
 
 #[cfg(test)]
@@ -32,9 +29,10 @@ mod tests {
 
     use super::*;
     use combine::Parser;
+    use elm::syntax::exposing::*;
 
     #[test]
-    fn simple() {
+    fn import() {
         assert_eq!(
             import_definition().parse("import Test exposing (..)"),
             Ok((
@@ -42,6 +40,39 @@ mod tests {
                     module_name: vec!["Test".to_string()],
                     module_alias: None,
                     exposing_list: Some(Exposing::All),
+                },
+                ""
+            ))
+        )
+    }
+
+    #[test]
+    fn import_with_alias() {
+        assert_eq!(
+            import_definition().parse("import Test as Alias exposing (..)"),
+            Ok((
+                Import {
+                    module_name: vec!["Test".to_string()],
+                    module_alias: Some("Alias".to_string()),
+                    exposing_list: Some(Exposing::All),
+                },
+                ""
+            ))
+        )
+    }
+
+    #[test]
+    fn import_with_exposing() {
+        assert_eq!(
+            import_definition().parse("import Test as Alias exposing (Abc,def)"),
+            Ok((
+                Import {
+                    module_name: vec!["Test".to_string()],
+                    module_alias: Some("Alias".to_string()),
+                    exposing_list: Some(Exposing::Explicit(vec![
+                        TopLevelExpose::TypeOrAliasExpose("Abc".to_string()),
+                        TopLevelExpose::FunctionExpose("def".to_string())
+                    ]))
                 },
                 ""
             ))
