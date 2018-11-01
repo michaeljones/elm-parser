@@ -1,19 +1,22 @@
 use combine::error::ParseError;
 use combine::parser::char::{char, space, spaces, string};
-use combine::{choice, sep_by, value, Parser, Stream};
+use combine::parser::range::take_while1;
+use combine::{between, choice, sep_by, value, Parser, RangeStream, Stream};
 
 use super::base::module_name;
 use super::tokens::{exposing_token, function_name, type_name};
 use elm::syntax::exposing::{Exposing, TopLevelExpose};
 
-pub fn expose_definition<I>() -> impl Parser<Input = I, Output = Exposing>
+pub fn expose_definition<'a, I>() -> impl Parser<Input = I, Output = Exposing> + 'a
 where
-    I: Stream<Item = char>,
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     let type_expose = type_name().map(TopLevelExpose::TypeOrAliasExpose);
     let function_expose = function_name().map(TopLevelExpose::FunctionExpose);
-    let infix_expose = function_name().map(TopLevelExpose::FunctionExpose);
+    let infix_expose = between(char('('), char(')'), take_while1(|c: char| c != ')'))
+        .map(|name: &str| TopLevelExpose::InfixExpose(name.to_string()));
 
     let exposable = choice((type_expose, infix_expose, function_expose));
 
@@ -62,6 +65,35 @@ mod tests {
                 Exposing::Explicit(vec![
                     TopLevelExpose::FunctionExpose("abc".to_string()),
                     TopLevelExpose::FunctionExpose("def".to_string())
+                ]),
+                ""
+            ))
+        );
+    }
+
+    #[test]
+    fn exposing_infixes() {
+        assert_eq!(
+            expose_definition().parse("exposing ((++),(--))"),
+            Ok((
+                Exposing::Explicit(vec![
+                    TopLevelExpose::InfixExpose("++".to_string()),
+                    TopLevelExpose::InfixExpose("--".to_string())
+                ]),
+                ""
+            ))
+        );
+    }
+
+    #[test]
+    fn exposing_mix() {
+        assert_eq!(
+            expose_definition().parse("exposing (Abc,abc,(--))"),
+            Ok((
+                Exposing::Explicit(vec![
+                    TopLevelExpose::TypeOrAliasExpose("Abc".to_string()),
+                    TopLevelExpose::FunctionExpose("abc".to_string()),
+                    TopLevelExpose::InfixExpose("--".to_string())
                 ]),
                 ""
             ))
