@@ -1,8 +1,12 @@
+// use elm::syntax::declaration::Declaration;
+use elm::syntax::import::Import;
 use elm::syntax::module::Module;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct File {
     pub module_definition: Module,
+    pub imports: Vec<Import>,
+    // pub declarations: Vec<Declaration>,
 }
 
 /*

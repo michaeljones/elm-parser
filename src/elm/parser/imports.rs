@@ -1,11 +1,10 @@
 use combine::error::ParseError;
-use combine::parser::char::{space, spaces, string};
 use combine::{optional, Parser, RangeStream};
 
-use super::base::{module_name, spaces1};
+use super::base::module_name;
 use super::expose::expose_definition;
 use super::tokens::{as_token, import_token, type_name};
-use elm::syntax::exposing::Exposing;
+use super::whitespace::many1_spaces;
 use elm::syntax::import::Import;
 
 pub fn import_definition<'a, I>() -> impl Parser<Input = I, Output = Import> + 'a
@@ -14,12 +13,12 @@ where
     I: RangeStream<Item = char, Range = &'a str>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    let as_definition = as_token().skip(spaces1()).with(type_name());
+    let as_definition = as_token().skip(many1_spaces()).with(type_name());
 
     struct_parser!(Import {
-        _: import_token().skip(spaces1()),
-        module_name: module_name().skip(spaces1()),
-        module_alias: optional(as_definition.skip(spaces1())),
+        _: import_token().skip(many1_spaces()),
+        module_name: module_name().skip(many1_spaces()),
+        module_alias: optional(as_definition.skip(many1_spaces())),
         exposing_list: optional(expose_definition())
     })
 }

@@ -1,6 +1,7 @@
 use combine::error::ParseError;
-use combine::{Parser, RangeStream};
+use combine::{many, Parser, RangeStream};
 
+use elm::parser::imports::import_definition;
 use elm::parser::modules::module_definition;
 use elm::syntax::file::File;
 
@@ -11,7 +12,8 @@ where
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     struct_parser!(File {
-        module_definition: module_definition()
+        module_definition: module_definition(),
+        imports: many(import_definition()),
     })
 }
 

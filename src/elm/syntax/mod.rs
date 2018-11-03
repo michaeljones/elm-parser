@@ -1,5 +1,9 @@
+pub mod declaration;
 pub mod exposing;
+pub mod expression;
 pub mod file;
 pub mod import;
 pub mod module;
 pub mod modulename;
+pub mod signature;
+pub mod typeannotation;

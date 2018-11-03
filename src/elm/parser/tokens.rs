@@ -1,7 +1,7 @@
 use combine::many;
 use combine::parser::char::{alpha_num, lower, string, upper};
 use combine::ParseError;
-use combine::{Parser, Stream};
+use combine::{Parser, RangeStream, Stream};
 
 pub fn type_name<I>() -> impl Parser<Input = I, Output = String>
 where
@@ -29,28 +29,66 @@ where
         })
 }
 
-pub fn exposing_token<I>() -> impl Parser<Input = I, Output = &'static str>
+pub fn exposing_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
 where
-    I: Stream<Item = char>,
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     string("exposing")
 }
 
-pub fn import_token<I>() -> impl Parser<Input = I, Output = &'static str>
+pub fn import_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
 where
-    I: Stream<Item = char>,
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     string("import")
 }
 
-pub fn as_token<I>() -> impl Parser<Input = I, Output = &'static str>
+pub fn as_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
 where
-    I: Stream<Item = char>,
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     string("as")
+}
+
+pub fn port_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    string("port")
+}
+
+pub fn string_literal<'a, I>() -> impl Parser<Input = I, Output = &'a str> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    combine::between(
+        combine::token('"'),
+        combine::token('"'),
+        combine::parser::range::take_while(|c: char| c != '"'),
+    )
+}
+
+pub fn multi_line_string_literal<'a, I>() -> impl Parser<Input = I, Output = &'a str> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    combine::between(
+        combine::attempt(combine::char::string("\"\"\"")),
+        combine::char::string("\"\"\""),
+        combine::parser::range::take_while(|c: char| c != '"'),
+    )
 }
 
 #[cfg(test)]
@@ -67,6 +105,19 @@ mod tests {
     #[test]
     fn function_name_simple() {
         assert_eq!(function_name().parse("abC1"), Ok(("abC1".to_string(), "")));
+    }
+
+    #[test]
+    fn string_literal_1() {
+        assert_eq!(string_literal().parse("\"abc\""), Ok(("abc", "")));
+    }
+
+    #[test]
+    fn multi_line_string_literal_1() {
+        assert_eq!(
+            multi_line_string_literal().parse("\"\"\"abc\"\"\""),
+            Ok(("abc", ""))
+        );
     }
 }
 

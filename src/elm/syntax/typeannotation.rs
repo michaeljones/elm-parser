@@ -1,3 +1,14 @@
+#[derive(Debug, PartialEq, Clone)]
+pub enum TypeAnnotation {
+    GenericType(String),
+    // Typed (Node ( ModuleName, String )) (List (Node TypeAnnotation))
+    Unit,
+    // Tupled (List (Node TypeAnnotation))
+    // Record RecordDefinition
+    // GenericRecord (Node String) (Node RecordDefinition)
+    // FunctionTypeAnnotation (Node TypeAnnotation) (Node TypeAnnotation)
+}
+
 /*
 module Elm.Syntax.TypeAnnotation exposing
     ( TypeAnnotation(..), RecordDefinition, RecordField

@@ -1,3 +1,10 @@
+use super::typeannotation::TypeAnnotation;
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Signature {
+    pub name: String,
+    pub type_annotation: TypeAnnotation,
+}
 /*
 module Elm.Syntax.Signature exposing
     ( Signature

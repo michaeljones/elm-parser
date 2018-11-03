@@ -1,9 +1,8 @@
 use combine::error::ParseError;
 use combine::parser::char::{char, space, spaces, string};
 use combine::parser::range::take_while1;
-use combine::{between, choice, sep_by, value, Parser, RangeStream, Stream};
+use combine::{between, choice, sep_by, value, Parser, RangeStream};
 
-use super::base::module_name;
 use super::tokens::{exposing_token, function_name, type_name};
 use elm::syntax::exposing::{Exposing, TopLevelExpose};
 
