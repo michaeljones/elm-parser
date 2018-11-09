@@ -24,9 +24,19 @@ mod tests {
     use elm::parser::file::file;
 
     #[test]
-    fn simple_file() {
-        let result = file().parse("module Test exposing (..)");
-        assert!(result.is_ok());
+    fn file_1() {
+        assert!(file().parse("module Test exposing (..)").is_ok());
+    }
+
+    #[test]
+    fn file_2() {
+        assert!(
+            file()
+                .parse(
+                    "module Test exposing (..)
+import Abc"
+                ).is_ok()
+        );
     }
 }
 

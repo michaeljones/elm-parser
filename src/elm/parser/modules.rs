@@ -4,6 +4,7 @@ use combine::{Parser, RangeStream};
 
 use super::base::module_name;
 use super::expose::expose_definition;
+use super::tokens;
 use super::whitespace::many1_spaces;
 use elm::syntax::module::{DefaultModuleData, Module};
 
@@ -15,7 +16,7 @@ where
 {
     struct_parser!(
         DefaultModuleData {
-            _: string("module").skip(many1_spaces()),
+            _: tokens::module_token().skip(many1_spaces()),
             module_name: module_name(),
             _: many1_spaces(),
             exposing_list: expose_definition()

@@ -1,12 +1,14 @@
+use super::modulename::ModuleName;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeAnnotation {
     GenericType(String),
-    // Typed (Node ( ModuleName, String )) (List (Node TypeAnnotation))
+    Typed((ModuleName, String), Vec<TypeAnnotation>),
     Unit,
-    // Tupled (List (Node TypeAnnotation))
+    Tupled(Vec<TypeAnnotation>),
     // Record RecordDefinition
     // GenericRecord (Node String) (Node RecordDefinition)
-    // FunctionTypeAnnotation (Node TypeAnnotation) (Node TypeAnnotation)
+    FunctionTypeAnnotation(Box<TypeAnnotation>, Box<TypeAnnotation>),
 }
 
 /*

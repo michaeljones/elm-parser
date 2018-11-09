@@ -1,19 +1,60 @@
+use combine::error::StreamError;
 use combine::{ParseError, Parser, RangeStream};
 
+use super::base;
 use super::tokens;
+use super::whitespace;
 use elm::syntax::typeannotation::TypeAnnotation;
 
-pub fn type_annotation<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
+pub fn type_annotation_<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
 where
     I: 'a,
     I: RangeStream<Item = char, Range = &'a str>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     combine::choice((
+        combine::attempt(function_type_annotation()),
+        unit(),
         parens_type_annotation(),
-        //, typedTypeAnnotation Lazy
-        generic_type_annotation(), //, recordTypeAnnotation
+        tupled_type_annotation(),
+        typed_type_annotation(),
+        generic_type_annotation(),
+        // recordTypeAnnotation
     ))
+}
+
+// Wrapper for type_annotation to allow it to be called recursively
+parser!{
+    pub fn type_annotation['a, I]()(I) -> TypeAnnotation
+    where [I: 'a, I: RangeStream<Item = char, Range = &'a str>]
+    {
+        type_annotation_()
+    }
+}
+
+pub fn non_function_type_annotation_<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    combine::choice((
+        unit(),
+        parens_type_annotation(),
+        tupled_type_annotation(),
+        typed_type_annotation(),
+        generic_type_annotation(),
+        // recordTypeAnnotation
+    ))
+}
+
+// Wrapper for type_annotation to allow it to be called recursively
+parser!{
+    pub fn non_function_type_annotation['a, I]()(I) -> TypeAnnotation
+    where [I: 'a, I: RangeStream<Item = char, Range = &'a str>]
+    {
+        non_function_type_annotation_()
+    }
 }
 
 pub fn parens_type_annotation<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
@@ -22,7 +63,59 @@ where
     I: RangeStream<Item = char, Range = &'a str>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    tokens::function_name().map(TypeAnnotation::GenericType)
+    combine::between(combine::token('('), combine::token(')'), type_annotation())
+}
+
+pub fn unit<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    combine::parser::char::string("()").map(|_| TypeAnnotation::Unit)
+}
+
+pub fn tupled_type_annotation<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    let comma_then_type = combine::token(',').with(type_annotation());
+    let contents = type_annotation().and(combine::many1(comma_then_type));
+
+    combine::between(combine::token('('), combine::token(')'), contents).map(
+        |(first, mut rest): (TypeAnnotation, Vec<TypeAnnotation>)| {
+            rest.insert(0, first);
+            TypeAnnotation::Tupled(rest)
+        },
+    )
+}
+
+pub fn typed_type_annotation<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    base::module_name()
+        .and(combine::optional(whitespace::many1_spaces().with(
+            combine::sep_by(non_function_type_annotation(), whitespace::many1_spaces()),
+        ))).and_then(
+            |(mut module_name, args): (Vec<String>, Option<Vec<TypeAnnotation>>)| match module_name
+                .pop()
+            {
+                Some(name) => Ok(TypeAnnotation::Typed(
+                    (module_name, name),
+                    args.unwrap_or(vec![]),
+                )),
+                None => Err(
+                    combine::stream::StreamErrorFor::<I>::expected_static_message(
+                        "Nothing in module name",
+                    ),
+                ),
+            },
+        )
 }
 
 pub fn generic_type_annotation<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
@@ -32,6 +125,20 @@ where
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     tokens::function_name().map(TypeAnnotation::GenericType)
+}
+
+pub fn function_type_annotation<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    non_function_type_annotation()
+        .skip(combine::parser::char::string(" -> "))
+        .and(type_annotation())
+        .map(|(first, second): (TypeAnnotation, TypeAnnotation)| {
+            TypeAnnotation::FunctionTypeAnnotation(Box::new(first), Box::new(second))
+        })
 }
 
 #[cfg(test)]
@@ -48,6 +155,116 @@ mod tests {
         );
     }
 
+    #[test]
+    fn unit_1() {
+        assert_eq!(unit().parse("()"), Ok((TypeAnnotation::Unit, "")));
+    }
+
+    #[test]
+    fn tupled_type_annotation_1() {
+        assert_eq!(
+            tupled_type_annotation().parse("(a,b)"),
+            Ok((
+                TypeAnnotation::Tupled(vec![
+                    TypeAnnotation::GenericType("a".to_string()),
+                    TypeAnnotation::GenericType("b".to_string())
+                ]),
+                ""
+            ))
+        );
+    }
+
+    #[test]
+    fn typed_type_annotation_1() {
+        assert_eq!(
+            typed_type_annotation().parse("Aaa"),
+            Ok((
+                TypeAnnotation::Typed((vec![], "Aaa".to_string()), vec![]),
+                ""
+            ))
+        );
+    }
+
+    #[test]
+    fn typed_type_annotation_1_non_function() {
+        assert_eq!(
+            non_function_type_annotation().parse("Aaa"),
+            Ok((
+                TypeAnnotation::Typed((vec![], "Aaa".to_string()), vec![]),
+                ""
+            ))
+        );
+    }
+
+    #[test]
+    fn typed_type_annotation_1_full() {
+        assert_eq!(
+            type_annotation().parse("Aaa"),
+            Ok((
+                TypeAnnotation::Typed((vec![], "Aaa".to_string()), vec![]),
+                ""
+            ))
+        );
+    }
+
+    #[test]
+    fn typed_type_annotation_2() {
+        assert_eq!(
+            typed_type_annotation().parse("Aaa.Bbb Ccc"),
+            Ok((
+                TypeAnnotation::Typed(
+                    (vec!["Aaa".to_string()], "Bbb".to_string()),
+                    vec![TypeAnnotation::Typed((vec![], "Ccc".to_string()), vec![])]
+                ),
+                ""
+            ))
+        );
+    }
+
+    #[test]
+    fn function_type_annotation_1() {
+        assert_eq!(
+            function_type_annotation().parse("() -> ()"),
+            Ok((
+                TypeAnnotation::FunctionTypeAnnotation(
+                    Box::new(TypeAnnotation::Unit),
+                    Box::new(TypeAnnotation::Unit)
+                ),
+                ""
+            ))
+        );
+    }
+
+    #[test]
+    fn function_type_annotation_2() {
+        assert_eq!(
+            function_type_annotation().parse("a -> b"),
+            Ok((
+                TypeAnnotation::FunctionTypeAnnotation(
+                    Box::new(TypeAnnotation::GenericType("a".to_string())),
+                    Box::new(TypeAnnotation::GenericType("b".to_string()))
+                ),
+                ""
+            ))
+        );
+    }
+
+    #[test]
+    fn function_type_annotation_3() {
+        assert_eq!(
+            function_type_annotation().parse("a -> b -> c"),
+            Ok((
+                TypeAnnotation::FunctionTypeAnnotation(
+                    Box::new(TypeAnnotation::GenericType("a".to_string())),
+                    Box::new(TypeAnnotation::FunctionTypeAnnotation(
+                        Box::new(TypeAnnotation::GenericType("b".to_string())),
+                        Box::new(TypeAnnotation::GenericType("c".to_string()))
+                    )),
+                ),
+                ""
+            ))
+        );
+    }
 }
 /*
 module Elm.Parser.TypeAnnotation exposing (typeAnnotation, typeAnnotationNonGreedy)

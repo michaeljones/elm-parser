@@ -23,6 +23,14 @@ mod tests {
     #[test]
     fn module_name_1() {
         assert_eq!(
+            module_name().parse("Aaa"),
+            Ok((vec!["Aaa".to_string()], ""))
+        );
+    }
+
+    #[test]
+    fn module_name_2() {
+        assert_eq!(
             module_name().parse("Aaa.Bb.Cd"),
             Ok((
                 vec!["Aaa".to_string(), "Bb".to_string(), "Cd".to_string()],

@@ -1,5 +1,5 @@
 use combine::error::ParseError;
-use combine::parser::char::{char, space, spaces, string};
+use combine::parser::char::{char, string};
 use combine::{Parser, RangeStream};
 
 pub fn many1_spaces<'a, I>() -> impl Parser<Input = I, Output = ()> + 'a

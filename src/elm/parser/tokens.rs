@@ -3,6 +3,13 @@ use combine::parser::char::{alpha_num, lower, string, upper};
 use combine::ParseError;
 use combine::{Parser, RangeStream, Stream};
 
+const RESERVED_WORDS: &[&str] = &[
+    "module", "where", "import", "as", "exposing", "type", "alias", "port", "if", "then", "else",
+    "let", "in", "case", "of",
+];
+
+const RESERVED_OPERATORS: &[&str] = &["=", ".", "..", "->", "--", "|", ":"];
+
 pub fn type_name<I>() -> impl Parser<Input = I, Output = String>
 where
     I: Stream<Item = char>,
@@ -27,6 +34,25 @@ where
             rest.insert(0, first);
             rest.into_iter().collect()
         })
+}
+
+pub fn function_name_or_type_name<I>() -> impl Parser<Input = I, Output = String>
+where
+    I: Stream<Item = char>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    function_name().or(type_name())
+}
+
+// Tokens ----
+
+pub fn module_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    string("module")
 }
 
 pub fn exposing_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
@@ -65,6 +91,53 @@ where
     string("port")
 }
 
+pub fn case_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    string("case")
+}
+
+pub fn of_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    string("of")
+}
+
+pub fn if_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    string("if")
+}
+
+pub fn then_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    string("then")
+}
+
+pub fn else_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+{
+    string("else")
+}
+
+// Strings ----
+
 pub fn string_literal<'a, I>() -> impl Parser<Input = I, Output = &'a str> + 'a
 where
     I: 'a,
@@ -90,6 +163,8 @@ where
         combine::parser::range::take_while(|c: char| c != '"'),
     )
 }
+
+// Tests ----
 
 #[cfg(test)]
 mod tests {
