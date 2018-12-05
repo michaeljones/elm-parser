@@ -34,6 +34,12 @@ fn get_imported_names(ast: &[ast::Statement]) -> Vec<String> {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+
+    if args.len() < 2 {
+        println!("Usage: {} [elm file to check]", args[0]);
+        std::process::exit(1);
+    }
+
     let filename = &args[1];
 
     let mut f = File::open(filename).expect("file not found");
