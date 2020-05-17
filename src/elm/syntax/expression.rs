@@ -9,7 +9,7 @@ pub enum Expression {
     // Operator String
     // Integer Int
     // Hex Int
-    // Floatable Float
+    Floatable(f64),
     // Negation (Node Expression)
     Literal(String),
     CharLiteral(char),

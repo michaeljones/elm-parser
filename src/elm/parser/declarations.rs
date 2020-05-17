@@ -1,3 +1,4 @@
+use combine::error::UnexpectedParse;
 use combine::{ParseError, Parser, RangeStream};
 
 use super::layout;
@@ -291,9 +292,17 @@ where
     I: 'a,
     I: RangeStream<Item = char, Range = &'a str>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
+    <<I as combine::StreamOnce>::Error as combine::ParseError<
+        char,
+        &'a str,
+        <I as combine::StreamOnce>::Position,
+    >>::StreamError: std::convert::From<combine::error::UnexpectedParse>,
+    <I as combine::StreamOnce>::Error:
+        combine::ParseError<char, &'a str, <I as combine::StreamOnce>::Position>,
 {
     combine::choice((
-        // numberExpression,
+        float_expression(),
+        // int_expression,
         // referenceExpression,
         // ifBlockExpression,
         // tupledExpression,
@@ -700,6 +709,31 @@ letExpression =
         )
         */
 
+pub fn float_expression<'a, I>() -> impl Parser<Input = I, Output = Expression> + 'a
+where
+    I: 'a,
+    I: RangeStream<Item = char, Range = &'a str>,
+    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    <<I as combine::StreamOnce>::Error as combine::ParseError<
+        char,
+        &'a str,
+        <I as combine::StreamOnce>::Position,
+    >>::StreamError: std::convert::From<combine::error::UnexpectedParse>,
+    <I as combine::StreamOnce>::Error:
+        combine::ParseError<char, &'a str, <I as combine::StreamOnce>::Position>,
+{
+    combine::range::recognize((
+        combine::skip_many1(combine::char::digit()),
+        combine::optional((
+            combine::token('.'),
+            combine::skip_many(combine::char::digit()),
+        )),
+    )).and_then(|bs: &'a str| {
+        bs.parse::<f64>()
+            .map(Expression::Floatable)
+            .map_err(|_| UnexpectedParse::Unexpected)
+    })
+}
 /*
 numberExpression : Parser State (Node Expression)
 numberExpression =
@@ -878,9 +912,22 @@ mod tests {
     use elm::syntax::typeannotation::TypeAnnotation;
 
     #[test]
+    fn float_expression_1() {
+        assert_eq!(
+            float_expression().parse("1.123"),
+            Ok((Expression::Literal("abc".to_string()), ""))
+        );
+    }
+
+    #[test]
     fn literal_expression_1() {
         assert_eq!(
             literal_expression().parse("\"abc\""),
+            Ok((Expression::Literal("abc".to_string()), ""))
+        );
+
+        assert_eq!(
+            expression_not_application().parse("\"abc\""),
             Ok((Expression::Literal("abc".to_string()), ""))
         );
     }
@@ -889,6 +936,11 @@ mod tests {
     fn literal_expression_2() {
         assert_eq!(
             literal_expression().parse("\"ab\nc\""),
+            Ok((Expression::Literal("ab\nc".to_string()), ""))
+        );
+
+        assert_eq!(
+            expression_not_application().parse("\"ab\nc\""),
             Ok((Expression::Literal("ab\nc".to_string()), ""))
         );
     }
