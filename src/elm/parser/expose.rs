@@ -1,17 +1,13 @@
-use combine::error::ParseError;
 use combine::parser::char::{char, space, spaces, string};
 use combine::parser::range::take_while1;
-use combine::{between, choice, sep_by, value, Parser, RangeStream};
+use combine::{between, choice, sep_by, value, Parser};
 
 use super::tokens::{exposing_token, function_name, type_name};
 use elm::syntax::exposing::{Exposing, TopLevelExpose};
 
-pub fn expose_definition<'a, I>() -> impl Parser<Input = I, Output = Exposing> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+type Input<'a> = &'a str;
+
+pub fn expose_definition<'a>() -> impl Parser<Input<'a>, Output = Exposing> {
     let type_expose = type_name().map(TopLevelExpose::TypeOrAliasExpose);
     let function_expose = function_name().map(TopLevelExpose::FunctionExpose);
     let infix_expose = between(char('('), char(')'), take_while1(|c: char| c != ')'))
@@ -19,7 +15,7 @@ where
 
     let exposable = choice((type_expose, infix_expose, function_expose));
 
-    let list = sep_by::<Vec<_>, _, _>(exposable, char(',')).map(Exposing::Explicit);
+    let list = sep_by::<Vec<_>, _, _, _>(exposable, char(',')).map(Exposing::Explicit);
 
     let all = string("..").with(value(Exposing::All));
 

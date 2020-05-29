@@ -1,17 +1,13 @@
-use combine::error::StreamError;
-use combine::{ParseError, Parser, RangeStream};
+use combine::Parser;
 
 use super::base;
 use super::tokens;
 use super::whitespace;
 use elm::syntax::typeannotation::TypeAnnotation;
 
-pub fn type_annotation_<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+type Input<'a> = &'a str;
+
+pub fn type_annotation_<'a>() -> impl Parser<Input<'a>, Output = TypeAnnotation> {
     combine::choice((
         combine::attempt(function_type_annotation()),
         unit(),
@@ -24,20 +20,15 @@ where
 }
 
 // Wrapper for type_annotation to allow it to be called recursively
-parser!{
-    pub fn type_annotation['a, I]()(I) -> TypeAnnotation
-    where [I: 'a, I: RangeStream<Item = char, Range = &'a str>]
+parser! {
+    pub fn type_annotation['a]()(Input<'a>) -> TypeAnnotation
+    where []
     {
         type_annotation_()
     }
 }
 
-pub fn non_function_type_annotation_<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn non_function_type_annotation_<'a>() -> impl Parser<Input<'a>, Output = TypeAnnotation> {
     combine::choice((
         unit(),
         parens_type_annotation(),
@@ -49,38 +40,23 @@ where
 }
 
 // Wrapper for type_annotation to allow it to be called recursively
-parser!{
-    pub fn non_function_type_annotation['a, I]()(I) -> TypeAnnotation
-    where [I: 'a, I: RangeStream<Item = char, Range = &'a str>]
+parser! {
+    pub fn non_function_type_annotation['a]()(Input<'a>) -> TypeAnnotation
+    where []
     {
         non_function_type_annotation_()
     }
 }
 
-pub fn parens_type_annotation<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn parens_type_annotation<'a>() -> impl Parser<Input<'a>, Output = TypeAnnotation> {
     combine::between(combine::token('('), combine::token(')'), type_annotation())
 }
 
-pub fn unit<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn unit<'a>() -> impl Parser<Input<'a>, Output = TypeAnnotation> {
     combine::parser::char::string("()").map(|_| TypeAnnotation::Unit)
 }
 
-pub fn tupled_type_annotation<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn tupled_type_annotation<'a>() -> impl Parser<Input<'a>, Output = TypeAnnotation> {
     let comma_then_type = combine::token(',').with(type_annotation());
     let contents = type_annotation().and(combine::many1(comma_then_type));
 
@@ -92,16 +68,12 @@ where
     )
 }
 
-pub fn typed_type_annotation<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn typed_type_annotation<'a>() -> impl Parser<Input<'a>, Output = TypeAnnotation> {
     base::module_name()
         .and(combine::optional(whitespace::many1_spaces().with(
             combine::sep_by(non_function_type_annotation(), whitespace::many1_spaces()),
-        ))).and_then(
+        )))
+        .and_then(
             |(mut module_name, args): (Vec<String>, Option<Vec<TypeAnnotation>>)| match module_name
                 .pop()
             {
@@ -109,30 +81,16 @@ where
                     (module_name, name),
                     args.unwrap_or(vec![]),
                 )),
-                None => Err(
-                    combine::stream::StreamErrorFor::<I>::expected_static_message(
-                        "Nothing in module name",
-                    ),
-                ),
+                None => Err(combine::error::StringStreamError::UnexpectedParse),
             },
         )
 }
 
-pub fn generic_type_annotation<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn generic_type_annotation<'a>() -> impl Parser<Input<'a>, Output = TypeAnnotation> {
     tokens::function_name().map(TypeAnnotation::GenericType)
 }
 
-pub fn function_type_annotation<'a, I>() -> impl Parser<Input = I, Output = TypeAnnotation> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn function_type_annotation<'a>() -> impl Parser<Input<'a>, Output = TypeAnnotation> {
     non_function_type_annotation()
         .skip(combine::parser::char::string(" -> "))
         .and(type_annotation())

@@ -1,24 +1,15 @@
-use combine::error::ParseError;
 use combine::parser::char::string;
-use combine::{Parser, RangeStream};
+use combine::Parser;
 
 use super::whitespace::until_new_line_token;
 
-pub fn single_line_comment<'a, I>() -> impl Parser<Input = I, Output = &'a str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+type Input<'a> = &'a str;
+
+pub fn single_line_comment<'a>() -> impl Parser<Input<'a>, Output = &'a str> {
     string("--").with(until_new_line_token())
 }
 
-pub fn multi_line_comment<'a, I>() -> impl Parser<Input = I, Output = &'a str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn multi_line_comment<'a>() -> impl Parser<Input<'a>, Output = &'a str> {
     // FIX
     single_line_comment()
 }

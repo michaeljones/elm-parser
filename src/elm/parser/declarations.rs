@@ -66,14 +66,14 @@ where
     combine::choice((
         // function,
         // type_definition, // |> Combine.map
-                    //     (\v ->
-                    //         case v of
-                    //             Typings.DefinedType r t ->
-                    //                 Node r (CustomTypeDeclaration t)
+        //     (\v ->
+        //         case v of
+        //             Typings.DefinedType r t ->
+        //                 Node r (CustomTypeDeclaration t)
 
-                    //             Typings.DefinedAlias r a ->
-                    //                 Node r (AliasDeclaration a)
-                    //     )
+        //             Typings.DefinedAlias r a ->
+        //                 Node r (AliasDeclaration a)
+        //     )
         port_declaration(),
         // infix_declaration,
         // destructuring_declaration,
@@ -722,13 +722,14 @@ where
     <I as combine::StreamOnce>::Error:
         combine::ParseError<char, &'a str, <I as combine::StreamOnce>::Position>,
 {
-    combine::range::recognize((
-        combine::skip_many1(combine::char::digit()),
+    combine::parser::range::recognize((
+        combine::skip_many1(combine::parser::char::digit()),
         combine::optional((
             combine::token('.'),
-            combine::skip_many(combine::char::digit()),
+            combine::skip_many(combine::parser::char::digit()),
         )),
-    )).and_then(|bs: &'a str| {
+    ))
+    .and_then(|bs: &'a str| {
         bs.parse::<f64>()
             .map(Expression::Floatable)
             .map_err(|_| UnexpectedParse::Unexpected)

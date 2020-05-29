@@ -1,7 +1,6 @@
 use combine::many;
 use combine::parser::char::{alpha_num, lower, string, upper};
-use combine::ParseError;
-use combine::{Parser, RangeStream, Stream};
+use combine::Parser;
 
 const RESERVED_WORDS: &[&str] = &[
     "module", "where", "import", "as", "exposing", "type", "alias", "port", "if", "then", "else",
@@ -10,11 +9,9 @@ const RESERVED_WORDS: &[&str] = &[
 
 const RESERVED_OPERATORS: &[&str] = &["=", ".", "..", "->", "--", "|", ":"];
 
-pub fn type_name<I>() -> impl Parser<Input = I, Output = String>
-where
-    I: Stream<Item = char>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+type Input<'a> = &'a str;
+
+pub fn type_name<'a>() -> impl Parser<Input<'a>, Output = String> {
     upper()
         .and(many(alpha_num()))
         .map(|(first, mut rest): (char, Vec<char>)| {
@@ -23,11 +20,7 @@ where
         })
 }
 
-pub fn function_name<I>() -> impl Parser<Input = I, Output = String>
-where
-    I: Stream<Item = char>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn function_name<'a>() -> impl Parser<Input<'a>, Output = String> {
     lower()
         .and(many(alpha_num()))
         .map(|(first, mut rest): (char, Vec<char>)| {
@@ -36,114 +29,55 @@ where
         })
 }
 
-pub fn function_name_or_type_name<I>() -> impl Parser<Input = I, Output = String>
-where
-    I: Stream<Item = char>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn function_name_or_type_name<'a>() -> impl Parser<Input<'a>, Output = String> {
     function_name().or(type_name())
 }
 
 // Tokens ----
 
-pub fn module_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn module_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
     string("module")
 }
 
-pub fn exposing_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn exposing_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
     string("exposing")
 }
 
-pub fn import_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn import_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
     string("import")
 }
 
-pub fn as_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn as_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
     string("as")
 }
 
-pub fn port_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn port_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
     string("port")
 }
 
-pub fn case_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn case_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
     string("case")
 }
 
-pub fn of_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn of_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
     string("of")
 }
 
-pub fn if_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn if_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
     string("if")
 }
 
-pub fn then_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn then_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
     string("then")
 }
 
-pub fn else_token<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn else_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
     string("else")
 }
 
 // Strings ----
 
-pub fn string_literal<'a, I>() -> impl Parser<Input = I, Output = &'a str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn string_literal<'a>() -> impl Parser<Input<'a>, Output = &'a str> {
     combine::between(
         combine::token('"'),
         combine::token('"'),
@@ -151,15 +85,10 @@ where
     )
 }
 
-pub fn multi_line_string_literal<'a, I>() -> impl Parser<Input = I, Output = &'a str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn multi_line_string_literal<'a>() -> impl Parser<Input<'a>, Output = &'a str> {
     combine::between(
-        combine::attempt(combine::char::string("\"\"\"")),
-        combine::char::string("\"\"\""),
+        combine::attempt(combine::parser::char::string("\"\"\"")),
+        combine::parser::char::string("\"\"\""),
         combine::parser::range::take_while(|c: char| c != '"'),
     )
 }

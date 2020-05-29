@@ -1,25 +1,15 @@
-use combine::{ParseError, Parser, RangeStream, StreamOnce};
+use combine::Parser;
 
 use super::comments;
 use super::whitespace;
 
-pub fn any_comment<'a, I>() -> impl Parser<Input = I, Output = ()> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn any_comment<Input>() -> impl Parser<Input, Output = ()> {
     comments::single_line_comment()
         .or(comments::multi_line_comment())
         .map(|_| ())
 }
 
-pub fn layout<'a, I>() -> impl Parser<Input = I, Output = ()> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn layout<Input>() -> impl Parser<Input, Output = ()> {
     combine::many1(combine::choice((
         any_comment(),
         combine::many1(
@@ -30,34 +20,18 @@ where
     )))
 }
 
-pub fn around<'a, P>(p: P) -> impl Parser<Input = P::Input, Output = P::Output> + 'a
+pub fn around<I, P>(p: P) -> impl Parser<I, Output = P::Output>
 where
-    P: 'a,
-    P: Parser,
-    <P as combine::Parser>::Input: 'a,
-    P::Input: RangeStream<Item = char, Range = &'a str>,
-    <P::Input as StreamOnce>::Error: ParseError<
-        <P::Input as StreamOnce>::Item,
-        <P::Input as StreamOnce>::Range,
-        <P::Input as StreamOnce>::Position,
-    >,
+    I: combine::Stream,
+    P: Parser<I>,
 {
     layout().with(p).skip(layout())
 }
 
-pub fn optional_around_both_sides<'a, P>(
-    p: P,
-) -> impl Parser<Input = P::Input, Output = P::Output> + 'a
+pub fn optional_around_both_sides<P, I>(p: P) -> impl Parser<I, Output = P::Output>
 where
-    P: 'a,
-    P: Parser,
-    <P as combine::Parser>::Input: 'a,
-    P::Input: RangeStream<Item = char, Range = &'a str>,
-    <P::Input as StreamOnce>::Error: ParseError<
-        <P::Input as StreamOnce>::Item,
-        <P::Input as StreamOnce>::Range,
-        <P::Input as StreamOnce>::Position,
-    >,
+    P: Parser<I>,
+    I: combine::Stream,
 {
     combine::optional(layout())
         .with(p)

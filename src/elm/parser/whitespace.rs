@@ -1,43 +1,24 @@
-use combine::error::ParseError;
 use combine::parser::char::{char, string};
-use combine::{Parser, RangeStream};
+use combine::Parser;
 
-pub fn many1_spaces<'a, I>() -> impl Parser<Input = I, Output = ()> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+type Input<'a> = &'a str;
+
+pub fn many1_spaces<'a>() -> impl Parser<Input<'a>, Output = ()> {
     combine::parser::range::take_while1(|c: char| c == ' ').map(|_| ())
 }
 
-pub fn n_spaces<'a, I>(n: usize) -> impl Parser<Input = I, Output = Vec<char>> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
-    combine::count_min_max::<Vec<_>, _>(n, n, combine::token(' '))
+pub fn n_spaces<'a>(n: usize) -> impl Parser<Input<'a>, Output = Vec<char>> {
+    combine::count_min_max::<Vec<_>, _, _>(n, n, combine::token(' '))
 }
 
-pub fn real_new_line<'a, I>() -> impl Parser<Input = I, Output = String> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+pub fn real_new_line<'a>() -> impl Parser<Input<'a>, Output = String> {
     (combine::optional(char('\r')), string("\n")).map(|(r, n): (Option<char>, &'static str)| {
         (r.map(|c| c.to_string()).unwrap_or("".to_string())) + n
     })
 }
 
-pub fn until_new_line_token<'a, I>() -> impl Parser<Input = I, Output = &'a str> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
-    combine::range::take_while(|c: char| c != '\n' && c != '\r')
+pub fn until_new_line_token<'a>() -> impl Parser<Input<'a>, Output = &'a str> {
+    combine::parser::range::take_while(|c: char| c != '\n' && c != '\r')
 }
 
 #[cfg(test)]

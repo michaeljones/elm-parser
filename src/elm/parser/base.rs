@@ -1,16 +1,13 @@
-use combine::error::ParseError;
 use combine::parser::char::char;
-use combine::{sep_by1, Parser, Stream};
+use combine::{sep_by1, Parser};
 
 use elm::syntax::modulename::ModuleName;
 
 use super::tokens::type_name;
 
-pub fn module_name<I>() -> impl Parser<Input = I, Output = ModuleName>
-where
-    I: Stream<Item = char>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+type Input<'a> = &'a str;
+
+pub fn module_name<'a>() -> impl Parser<Input<'a>, Output = ModuleName> {
     sep_by1(type_name(), char('.'))
 }
 

@@ -1,6 +1,4 @@
-use combine::error::ParseError;
-use combine::parser::char::string;
-use combine::{Parser, RangeStream};
+use combine::Parser;
 
 use super::base::module_name;
 use super::expose::expose_definition;
@@ -8,12 +6,9 @@ use super::tokens;
 use super::whitespace::many1_spaces;
 use elm::syntax::module::{DefaultModuleData, Module};
 
-pub fn module_definition<'a, I>() -> impl Parser<Input = I, Output = Module> + 'a
-where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-{
+type Input<'a> = &'a str;
+
+pub fn module_definition<'a>() -> impl Parser<Input<'a>, Output = Module> {
     struct_parser!(
         DefaultModuleData {
             _: tokens::module_token().skip(many1_spaces()),
@@ -21,7 +16,8 @@ where
             _: many1_spaces(),
             exposing_list: expose_definition()
         }
-    ).map(Module::NormalModule)
+    )
+    .map(Module::NormalModule)
 }
 
 #[cfg(test)]
