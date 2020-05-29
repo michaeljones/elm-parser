@@ -8,7 +8,7 @@ name = "elm-parser-dump"
 path = "src/dump.rs"
 
 [dependencies]
-combine = "3.6.1"
-regex = { version = "^1.0" }
+combine = "4"
+regex = { version = "1" }
 walkdir = "2"
-clap = "2.32.0"
+clap = "2"
