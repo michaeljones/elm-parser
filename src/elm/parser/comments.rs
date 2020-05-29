@@ -1,15 +1,22 @@
 use combine::parser::char::string;
+use combine::ParseError;
 use combine::Parser;
 
 use super::whitespace::until_new_line_token;
 
-type Input<'a> = &'a str;
-
-pub fn single_line_comment<'a>() -> impl Parser<Input<'a>, Output = &'a str> {
+pub fn single_line_comment<Input>() -> impl Parser<Input, Output = String>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     string("--").with(until_new_line_token())
 }
 
-pub fn multi_line_comment<'a>() -> impl Parser<Input<'a>, Output = &'a str> {
+pub fn multi_line_comment<Input>() -> impl Parser<Input, Output = String>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     // FIX
     single_line_comment()
 }
@@ -24,7 +31,7 @@ mod tests {
     fn single_line_comment_1() {
         assert_eq!(
             single_line_comment().parse("-- bob \n"),
-            Ok((" bob ", "\n"))
+            Ok((" bob ".to_string(), "\n"))
         );
     }
 }

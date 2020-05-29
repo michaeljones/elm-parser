@@ -1,3 +1,4 @@
+use combine::ParseError;
 use combine::Parser;
 
 use super::base::module_name;
@@ -6,9 +7,12 @@ use super::tokens;
 use super::whitespace::many1_spaces;
 use elm::syntax::module::{DefaultModuleData, Module};
 
-type Input<'a> = &'a str;
-
-pub fn module_definition<'a>() -> impl Parser<Input<'a>, Output = Module> {
+pub fn module_definition<Input>() -> impl Parser<Input, Output = Module>
+where
+    Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <Input as combine::StreamOnce>::Range: combine::stream::Range,
+{
     struct_parser!(
         DefaultModuleData {
             _: tokens::module_token().skip(many1_spaces()),

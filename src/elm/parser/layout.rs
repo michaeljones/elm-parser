@@ -1,15 +1,24 @@
+use combine::ParseError;
 use combine::Parser;
 
 use super::comments;
 use super::whitespace;
 
-pub fn any_comment<Input>() -> impl Parser<Input, Output = ()> {
+pub fn any_comment<Input>() -> impl Parser<Input, Output = ()>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     comments::single_line_comment()
         .or(comments::multi_line_comment())
         .map(|_| ())
 }
 
-pub fn layout<Input>() -> impl Parser<Input, Output = ()> {
+pub fn layout<Input>() -> impl Parser<Input, Output = ()>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     combine::many1(combine::choice((
         any_comment(),
         combine::many1(
@@ -20,18 +29,20 @@ pub fn layout<Input>() -> impl Parser<Input, Output = ()> {
     )))
 }
 
-pub fn around<I, P>(p: P) -> impl Parser<I, Output = P::Output>
+pub fn around<Input, P>(p: P) -> impl Parser<Input, Output = P::Output>
 where
-    I: combine::Stream,
-    P: Parser<I>,
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    P: Parser<Input>,
 {
     layout().with(p).skip(layout())
 }
 
-pub fn optional_around_both_sides<P, I>(p: P) -> impl Parser<I, Output = P::Output>
+pub fn optional_around_both_sides<Input, P>(p: P) -> impl Parser<Input, Output = P::Output>
 where
-    P: Parser<I>,
-    I: combine::Stream,
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    P: Parser<Input>,
 {
     combine::optional(layout())
         .with(p)

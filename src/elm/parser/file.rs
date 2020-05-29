@@ -1,15 +1,15 @@
 use combine::error::ParseError;
-use combine::{many, Parser, RangeStream};
+use combine::{many, Parser};
 
 use elm::parser::imports::import_definition;
 use elm::parser::modules::module_definition;
 use elm::syntax::file::File;
 
-pub fn file<'a, I>() -> impl Parser<Input = I, Output = File> + 'a
+pub fn file<Input>() -> impl Parser<Input, Output = File>
 where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <Input as combine::StreamOnce>::Range: combine::stream::Range,
 {
     struct_parser!(File {
         module_definition: module_definition(),
@@ -30,13 +30,12 @@ mod tests {
 
     #[test]
     fn file_2() {
-        assert!(
-            file()
-                .parse(
-                    "module Test exposing (..)
+        assert!(file()
+            .parse(
+                "module Test exposing (..)
 import Abc"
-                ).is_ok()
-        );
+            )
+            .is_ok());
     }
 }
 

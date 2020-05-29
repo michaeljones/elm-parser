@@ -1,24 +1,39 @@
 use combine::parser::char::{char, string};
+use combine::ParseError;
 use combine::Parser;
 
-type Input<'a> = &'a str;
-
-pub fn many1_spaces<'a>() -> impl Parser<Input<'a>, Output = ()> {
-    combine::parser::range::take_while1(|c: char| c == ' ').map(|_| ())
+pub fn many1_spaces<Input>() -> impl Parser<Input, Output = ()>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    combine::many1(combine::satisfy(|c: char| c == ' ')).map(|_: String| ())
 }
 
-pub fn n_spaces<'a>(n: usize) -> impl Parser<Input<'a>, Output = Vec<char>> {
+pub fn n_spaces<Input>(n: usize) -> impl Parser<Input, Output = Vec<char>>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     combine::count_min_max::<Vec<_>, _, _>(n, n, combine::token(' '))
 }
 
-pub fn real_new_line<'a>() -> impl Parser<Input<'a>, Output = String> {
+pub fn real_new_line<Input>() -> impl Parser<Input, Output = String>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     (combine::optional(char('\r')), string("\n")).map(|(r, n): (Option<char>, &'static str)| {
-        (r.map(|c| c.to_string()).unwrap_or("".to_string())) + n
+        (r.map(|c| c.to_string()).unwrap_or_else(|| "".to_string())) + n
     })
 }
 
-pub fn until_new_line_token<'a>() -> impl Parser<Input<'a>, Output = &'a str> {
-    combine::parser::range::take_while(|c: char| c != '\n' && c != '\r')
+pub fn until_new_line_token<Input>() -> impl Parser<Input, Output = String>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    combine::many(combine::satisfy(|c: char| c != '\n' && c != '\r'))
 }
 
 #[cfg(test)]
@@ -57,7 +72,10 @@ mod tests {
 
     #[test]
     fn until_new_line_token_1() {
-        assert_eq!(until_new_line_token().parse("abc\n"), Ok(("abc", "\n")));
+        assert_eq!(
+            until_new_line_token().parse("abc\n"),
+            Ok(("abc".to_string(), "\n"))
+        );
     }
 
     #[test]
@@ -67,6 +85,11 @@ mod tests {
 
     #[test]
     fn many1_spaces_2() {
+        assert_eq!(many1_spaces().parse(" "), Ok(((), "")));
+    }
+
+    #[test]
+    fn many1_spaces_3() {
         assert_eq!(many1_spaces().parse("  \n"), Ok(((), "\n")));
     }
 }

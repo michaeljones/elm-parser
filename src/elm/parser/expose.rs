@@ -1,17 +1,20 @@
 use combine::parser::char::{char, space, spaces, string};
-use combine::parser::range::take_while1;
-use combine::{between, choice, sep_by, value, Parser};
+use combine::ParseError;
+use combine::{between, choice, many, satisfy, sep_by, value, Parser};
 
 use super::tokens::{exposing_token, function_name, type_name};
 use elm::syntax::exposing::{Exposing, TopLevelExpose};
 
-type Input<'a> = &'a str;
-
-pub fn expose_definition<'a>() -> impl Parser<Input<'a>, Output = Exposing> {
+pub fn expose_definition<Input>() -> impl Parser<Input, Output = Exposing>
+where
+    Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <Input as combine::StreamOnce>::Range: combine::stream::Range,
+{
     let type_expose = type_name().map(TopLevelExpose::TypeOrAliasExpose);
     let function_expose = function_name().map(TopLevelExpose::FunctionExpose);
-    let infix_expose = between(char('('), char(')'), take_while1(|c: char| c != ')'))
-        .map(|name: &str| TopLevelExpose::InfixExpose(name.to_string()));
+    let infix_expose =
+        between(char('('), char(')'), many(satisfy(|c| c != ')'))).map(TopLevelExpose::InfixExpose);
 
     let exposable = choice((type_expose, infix_expose, function_expose));
 

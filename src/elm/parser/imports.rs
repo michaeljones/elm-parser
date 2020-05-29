@@ -1,3 +1,4 @@
+use combine::ParseError;
 use combine::{optional, Parser};
 
 use super::base::module_name;
@@ -6,9 +7,12 @@ use super::tokens::{as_token, import_token, type_name};
 use super::whitespace::many1_spaces;
 use elm::syntax::import::Import;
 
-type Input<'a> = &'a str;
-
-pub fn import_definition<'a>() -> impl Parser<Input<'a>, Output = Import> {
+pub fn import_definition<Input>() -> impl Parser<Input, Output = Import>
+where
+    Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <Input as combine::StreamOnce>::Range: combine::stream::Range,
+{
     let as_definition = as_token().skip(many1_spaces()).with(type_name());
 
     struct_parser!(Import {

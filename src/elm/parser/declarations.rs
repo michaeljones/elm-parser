@@ -1,5 +1,5 @@
-use combine::error::UnexpectedParse;
-use combine::{ParseError, Parser, RangeStream};
+use combine::error::StreamError;
+use combine::{ParseError, Parser};
 
 use super::layout;
 use super::tokens;
@@ -57,11 +57,10 @@ declaration =
         )
         */
 
-pub fn declaration<'a, I>() -> impl Parser<Input = I, Output = Declaration> + 'a
+pub fn declaration<Input>() -> impl Parser<Input, Output = Declaration>
 where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
     combine::choice((
         // function,
@@ -189,11 +188,10 @@ signature =
         |> Combine.andMap (Layout.maybeAroundBothSides (string ":") |> Combine.continueWith (maybe Layout.layout) |> Combine.continueWith typeAnnotation)
 
         */
-pub fn signature<'a, I>() -> impl Parser<Input = I, Output = Signature> + 'a
+pub fn signature<Input>() -> impl Parser<Input, Output = Signature>
 where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
     let type_annotation_parser = layout::optional_around_both_sides(combine::token(':'))
         .with(combine::optional(layout::layout()))
@@ -239,11 +237,10 @@ portDeclaration =
         )
         */
 
-pub fn port_declaration<'a, I>() -> impl Parser<Input = I, Output = Declaration> + 'a
+pub fn port_declaration<Input>() -> impl Parser<Input, Output = Declaration>
 where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
     tokens::port_token()
         .skip(layout::layout())
@@ -287,18 +284,11 @@ expressionNotApplication =
 
         */
 
-pub fn expression_not_application<'a, I>() -> impl Parser<Input = I, Output = Expression> + 'a
+pub fn expression_not_application<Input>() -> impl Parser<Input, Output = Expression>
 where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-    <<I as combine::StreamOnce>::Error as combine::ParseError<
-        char,
-        &'a str,
-        <I as combine::StreamOnce>::Position,
-    >>::StreamError: std::convert::From<combine::error::UnexpectedParse>,
-    <I as combine::StreamOnce>::Error:
-        combine::ParseError<char, &'a str, <I as combine::StreamOnce>::Position>,
+    Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <Input as combine::StreamOnce>::Range: combine::stream::Range,
 {
     combine::choice((
         float_expression(),
@@ -513,11 +503,11 @@ literalExpression =
         )
         */
 
-pub fn literal_expression<'a, I>() -> impl Parser<Input = I, Output = Expression> + 'a
+pub fn literal_expression<Input>() -> impl Parser<Input, Output = Expression>
 where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <Input as combine::StreamOnce>::Range: combine::stream::Range,
 {
     tokens::multi_line_string_literal()
         .or(tokens::string_literal())
@@ -531,11 +521,10 @@ charLiteralExpression =
 
         */
 
-pub fn char_literal_expression<'a, I>() -> impl Parser<Input = I, Output = Expression> + 'a
+pub fn char_literal_expression<Input>() -> impl Parser<Input, Output = Expression>
 where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
     combine::between(combine::token('\''), combine::token('\''), combine::any())
         .map(Expression::CharLiteral)
@@ -709,30 +698,24 @@ letExpression =
         )
         */
 
-pub fn float_expression<'a, I>() -> impl Parser<Input = I, Output = Expression> + 'a
+pub fn float_expression<Input>() -> impl Parser<Input, Output = Expression>
 where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
-    <<I as combine::StreamOnce>::Error as combine::ParseError<
-        char,
-        &'a str,
-        <I as combine::StreamOnce>::Position,
-    >>::StreamError: std::convert::From<combine::error::UnexpectedParse>,
-    <I as combine::StreamOnce>::Error:
-        combine::ParseError<char, &'a str, <I as combine::StreamOnce>::Position>,
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
-    combine::parser::range::recognize((
+    combine::parser::combinator::recognize((
         combine::skip_many1(combine::parser::char::digit()),
         combine::optional((
             combine::token('.'),
             combine::skip_many(combine::parser::char::digit()),
         )),
     ))
-    .and_then(|bs: &'a str| {
-        bs.parse::<f64>()
-            .map(Expression::Floatable)
-            .map_err(|_| UnexpectedParse::Unexpected)
+    .and_then(|bs: String| {
+        bs.parse::<f64>().map(Expression::Floatable).map_err(|_| {
+            combine::stream::StreamErrorFor::<Input>::expected_static_message(
+                "Unable to parse float",
+            )
+        })
     })
 }
 /*
@@ -840,11 +823,10 @@ recordAccessFunctionExpression =
 
         */
 
-pub fn record_access_function_expression<'a, I>() -> impl Parser<Input = I, Output = Expression> + 'a
+pub fn record_access_function_expression<Input>() -> impl Parser<Input, Output = Expression>
 where
-    I: 'a,
-    I: RangeStream<Item = char, Range = &'a str>,
-    I::Error: ParseError<I::Item, I::Range, I::Position>,
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
 {
     combine::parser::char::string(".")
         .with(tokens::function_name())
@@ -916,7 +898,7 @@ mod tests {
     fn float_expression_1() {
         assert_eq!(
             float_expression().parse("1.123"),
-            Ok((Expression::Literal("abc".to_string()), ""))
+            Ok((Expression::Floatable(1.123), ""))
         );
     }
 
@@ -962,17 +944,17 @@ mod tests {
         );
     }
 
-    #[test]
-    fn signature_1() {
-        assert_eq!(
-            signature().parse("abc : a"),
-            Ok((
-                Signature {
-                    name: "abc".to_string(),
-                    type_annotation: TypeAnnotation::GenericType("a".to_string())
-                },
-                ""
-            ))
-        );
-    }
+    // #[test]
+    // fn signature_1() {
+    //     assert_eq!(
+    //         signature().parse("abc : a"),
+    //         Ok((
+    //             Signature {
+    //                 name: "abc".to_string(),
+    //                 type_annotation: TypeAnnotation::GenericType("a".to_string())
+    //             },
+    //             ""
+    //         ))
+    //     );
+    // }
 }

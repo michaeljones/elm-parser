@@ -1,5 +1,6 @@
 use combine::many;
 use combine::parser::char::{alpha_num, lower, string, upper};
+use combine::ParseError;
 use combine::Parser;
 
 const RESERVED_WORDS: &[&str] = &[
@@ -9,9 +10,11 @@ const RESERVED_WORDS: &[&str] = &[
 
 const RESERVED_OPERATORS: &[&str] = &["=", ".", "..", "->", "--", "|", ":"];
 
-type Input<'a> = &'a str;
-
-pub fn type_name<'a>() -> impl Parser<Input<'a>, Output = String> {
+pub fn type_name<Input>() -> impl Parser<Input, Output = String>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     upper()
         .and(many(alpha_num()))
         .map(|(first, mut rest): (char, Vec<char>)| {
@@ -20,7 +23,11 @@ pub fn type_name<'a>() -> impl Parser<Input<'a>, Output = String> {
         })
 }
 
-pub fn function_name<'a>() -> impl Parser<Input<'a>, Output = String> {
+pub fn function_name<Input>() -> impl Parser<Input, Output = String>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     lower()
         .and(many(alpha_num()))
         .map(|(first, mut rest): (char, Vec<char>)| {
@@ -29,67 +36,121 @@ pub fn function_name<'a>() -> impl Parser<Input<'a>, Output = String> {
         })
 }
 
-pub fn function_name_or_type_name<'a>() -> impl Parser<Input<'a>, Output = String> {
+pub fn function_name_or_type_name<Input>() -> impl Parser<Input, Output = String>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     function_name().or(type_name())
 }
 
 // Tokens ----
 
-pub fn module_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
+pub fn module_token<Input>() -> impl Parser<Input, Output = &'static str>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     string("module")
 }
 
-pub fn exposing_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
+pub fn exposing_token<Input>() -> impl Parser<Input, Output = &'static str>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     string("exposing")
 }
 
-pub fn import_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
+pub fn import_token<Input>() -> impl Parser<Input, Output = &'static str>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     string("import")
 }
 
-pub fn as_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
+pub fn as_token<Input>() -> impl Parser<Input, Output = &'static str>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     string("as")
 }
 
-pub fn port_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
+pub fn port_token<Input>() -> impl Parser<Input, Output = &'static str>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     string("port")
 }
 
-pub fn case_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
+pub fn case_token<Input>() -> impl Parser<Input, Output = &'static str>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     string("case")
 }
 
-pub fn of_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
+pub fn of_token<Input>() -> impl Parser<Input, Output = &'static str>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     string("of")
 }
 
-pub fn if_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
+pub fn if_token<Input>() -> impl Parser<Input, Output = &'static str>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     string("if")
 }
 
-pub fn then_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
+pub fn then_token<Input>() -> impl Parser<Input, Output = &'static str>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     string("then")
 }
 
-pub fn else_token<'a>() -> impl Parser<Input<'a>, Output = &'static str> {
+pub fn else_token<Input>() -> impl Parser<Input>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
     string("else")
 }
 
 // Strings ----
 
-pub fn string_literal<'a>() -> impl Parser<Input<'a>, Output = &'a str> {
+pub fn string_literal<Input>() -> impl Parser<Input, Output = String>
+where
+    Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <Input as combine::StreamOnce>::Range: combine::stream::Range,
+{
     combine::between(
         combine::token('"'),
         combine::token('"'),
-        combine::parser::range::take_while(|c: char| c != '"'),
+        combine::many(combine::satisfy(|c: char| c != '"')),
     )
 }
 
-pub fn multi_line_string_literal<'a>() -> impl Parser<Input<'a>, Output = &'a str> {
+pub fn multi_line_string_literal<Input>() -> impl Parser<Input, Output = String>
+where
+    Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    <Input as combine::StreamOnce>::Range: combine::stream::Range,
+{
     combine::between(
         combine::attempt(combine::parser::char::string("\"\"\"")),
         combine::parser::char::string("\"\"\""),
-        combine::parser::range::take_while(|c: char| c != '"'),
+        combine::many(combine::satisfy(|c: char| c != '"')),
     )
 }
 
@@ -113,14 +174,17 @@ mod tests {
 
     #[test]
     fn string_literal_1() {
-        assert_eq!(string_literal().parse("\"abc\""), Ok(("abc", "")));
+        assert_eq!(
+            string_literal().parse("\"abc\""),
+            Ok(("abc".to_string(), ""))
+        );
     }
 
     #[test]
     fn multi_line_string_literal_1() {
         assert_eq!(
             multi_line_string_literal().parse("\"\"\"abc\"\"\""),
-            Ok(("abc", ""))
+            Ok(("abc".to_string(), ""))
         );
     }
 }
