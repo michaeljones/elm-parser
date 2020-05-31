@@ -3,11 +3,12 @@ use combine::Parser;
 
 use super::base::module_name;
 use super::expose::expose_definition;
+use super::state::StateStream;
 use super::tokens;
 use super::whitespace::many1_spaces;
 use elm::syntax::module::{DefaultModuleData, Module};
 
-pub fn module_definition<Input>() -> impl Parser<Input, Output = Module>
+pub fn module_definition<Input>() -> impl Parser<StateStream<Input>, Output = Module>
 where
     Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,

@@ -1,13 +1,15 @@
 use combine::ParseError;
 use combine::{optional, Parser};
 
-use super::base::module_name;
-use super::expose::expose_definition;
-use super::tokens::{as_token, import_token, type_name};
-use super::whitespace::many1_spaces;
 use elm::syntax::import::Import;
 
-pub fn import_definition<Input>() -> impl Parser<Input, Output = Import>
+use super::base::module_name;
+use super::expose::expose_definition;
+use super::state::StateStream;
+use super::tokens::{as_token, import_token, type_name};
+use super::whitespace::many1_spaces;
+
+pub fn import_definition<Input>() -> impl Parser<StateStream<Input>, Output = Import>
 where
     Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,

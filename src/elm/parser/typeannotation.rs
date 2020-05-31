@@ -3,11 +3,12 @@ use combine::ParseError;
 use combine::Parser;
 
 use super::base;
+use super::state::StateStream;
 use super::tokens;
 use super::whitespace;
 use elm::syntax::typeannotation::TypeAnnotation;
 
-pub fn type_annotation_<Input>() -> impl Parser<Input, Output = TypeAnnotation>
+pub fn type_annotation_<Input>() -> impl Parser<StateStream<Input>, Output = TypeAnnotation>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -25,7 +26,7 @@ where
 
 // Wrapper for type_annotation to allow it to be called recursively
 parser! {
-    pub fn type_annotation[Input]()(Input) -> TypeAnnotation
+    pub fn type_annotation[Input]()(StateStream<Input>) -> TypeAnnotation
     where [
         Input: combine::Stream<Token = char>,
         Input::Error: ParseError<Input::Token, Input::Range, Input::Position>
@@ -35,7 +36,8 @@ parser! {
     }
 }
 
-pub fn non_function_type_annotation_<Input>() -> impl Parser<Input, Output = TypeAnnotation>
+pub fn non_function_type_annotation_<Input>(
+) -> impl Parser<StateStream<Input>, Output = TypeAnnotation>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -52,7 +54,7 @@ where
 
 // Wrapper for type_annotation to allow it to be called recursively
 parser! {
-    pub fn non_function_type_annotation[Input]()(Input) -> TypeAnnotation
+    pub fn non_function_type_annotation[Input]()(StateStream<Input>) -> TypeAnnotation
     where [
         Input: combine::Stream<Token = char>,
         Input::Error: ParseError<Input::Token, Input::Range, Input::Position>
@@ -62,7 +64,7 @@ parser! {
     }
 }
 
-pub fn parens_type_annotation<Input>() -> impl Parser<Input, Output = TypeAnnotation>
+pub fn parens_type_annotation<Input>() -> impl Parser<StateStream<Input>, Output = TypeAnnotation>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -70,7 +72,7 @@ where
     combine::between(combine::token('('), combine::token(')'), type_annotation())
 }
 
-pub fn unit<Input>() -> impl Parser<Input, Output = TypeAnnotation>
+pub fn unit<Input>() -> impl Parser<StateStream<Input>, Output = TypeAnnotation>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -78,7 +80,7 @@ where
     combine::parser::char::string("()").map(|_| TypeAnnotation::Unit)
 }
 
-pub fn tupled_type_annotation<Input>() -> impl Parser<Input, Output = TypeAnnotation>
+pub fn tupled_type_annotation<Input>() -> impl Parser<StateStream<Input>, Output = TypeAnnotation>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -94,7 +96,7 @@ where
     )
 }
 
-pub fn typed_type_annotation<Input>() -> impl Parser<Input, Output = TypeAnnotation>
+pub fn typed_type_annotation<Input>() -> impl Parser<StateStream<Input>, Output = TypeAnnotation>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -120,7 +122,7 @@ where
         )
 }
 
-pub fn generic_type_annotation<Input>() -> impl Parser<Input, Output = TypeAnnotation>
+pub fn generic_type_annotation<Input>() -> impl Parser<StateStream<Input>, Output = TypeAnnotation>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -128,7 +130,7 @@ where
     tokens::function_name().map(TypeAnnotation::GenericType)
 }
 
-pub fn function_type_annotation<Input>() -> impl Parser<Input, Output = TypeAnnotation>
+pub fn function_type_annotation<Input>() -> impl Parser<StateStream<Input>, Output = TypeAnnotation>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,

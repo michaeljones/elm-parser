@@ -1,6 +1,6 @@
 use combine::{ParseError, Parser, RangeStream};
 
-pub fn port_declaration<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
+pub fn port_declaration<'a, I>() -> impl Parser<StateStream<Input> = I, Output = &'static str> + 'a
 where
     I: 'a,
     I: RangeStream<Item = char, Range = &'a str>,

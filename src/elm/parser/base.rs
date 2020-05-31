@@ -4,9 +4,10 @@ use combine::{sep_by1, Parser};
 
 use elm::syntax::modulename::ModuleName;
 
+use super::state::StateStream;
 use super::tokens::type_name;
 
-pub fn module_name<Input>() -> impl Parser<Input, Output = ModuleName>
+pub fn module_name<Input>() -> impl Parser<StateStream<Input>, Output = ModuleName>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,

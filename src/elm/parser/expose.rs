@@ -3,10 +3,12 @@ use combine::ParseError;
 use combine::{between, choice, many, satisfy, sep_by, value, Parser};
 
 use super::layout::optional_around_both_sides;
+use super::state::StateStream;
 use super::tokens::{exposing_token, function_name, type_name};
+
 use elm::syntax::exposing::{ExposedType, Exposing, TopLevelExpose};
 
-pub fn expose_definition<Input>() -> impl Parser<Input, Output = Exposing>
+pub fn expose_definition<Input>() -> impl Parser<StateStream<Input>, Output = Exposing>
 where
     Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,

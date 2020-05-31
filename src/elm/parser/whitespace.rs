@@ -2,7 +2,9 @@ use combine::parser::char::{char, string};
 use combine::ParseError;
 use combine::Parser;
 
-pub fn many1_spaces<Input>() -> impl Parser<Input, Output = ()>
+use super::state::StateStream;
+
+pub fn many1_spaces<Input>() -> impl Parser<StateStream<Input>, Output = ()>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -10,7 +12,7 @@ where
     combine::many1(combine::satisfy(|c: char| c == ' ')).map(|_: String| ())
 }
 
-pub fn n_spaces<Input>(n: usize) -> impl Parser<Input, Output = Vec<char>>
+pub fn n_spaces<Input>(n: usize) -> impl Parser<StateStream<Input>, Output = Vec<char>>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -18,7 +20,7 @@ where
     combine::count_min_max::<Vec<_>, _, _>(n, n, combine::token(' '))
 }
 
-pub fn real_new_line<Input>() -> impl Parser<Input, Output = String>
+pub fn real_new_line<Input>() -> impl Parser<StateStream<Input>, Output = String>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -28,7 +30,7 @@ where
     })
 }
 
-pub fn until_new_line_token<Input>() -> impl Parser<Input, Output = String>
+pub fn until_new_line_token<Input>() -> impl Parser<StateStream<Input>, Output = String>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,

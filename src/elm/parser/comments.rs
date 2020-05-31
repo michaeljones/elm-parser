@@ -2,9 +2,10 @@ use combine::parser::char::string;
 use combine::ParseError;
 use combine::Parser;
 
+use super::state::StateStream;
 use super::whitespace::until_new_line_token;
 
-pub fn single_line_comment<Input>() -> impl Parser<Input, Output = String>
+pub fn single_line_comment<Input>() -> impl Parser<StateStream<Input>, Output = String>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -12,7 +13,7 @@ where
     string("--").with(until_new_line_token())
 }
 
-pub fn multi_line_comment<Input>() -> impl Parser<Input, Output = String>
+pub fn multi_line_comment<Input>() -> impl Parser<StateStream<Input>, Output = String>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,

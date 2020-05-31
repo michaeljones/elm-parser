@@ -1,3 +1,10 @@
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+pub struct State {
+    pub indentation: i32,
+}
+
+pub type StateStream<Input> = combine::stream::state::Stream<Input, State>;
+
 /*
 module Elm.Parser.State exposing (State, addComment, currentIndent, emptyState, expectedColumn, getComments, popIndent, pushColumn, storedColumns)
 

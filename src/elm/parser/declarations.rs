@@ -2,8 +2,10 @@ use combine::error::StreamError;
 use combine::{ParseError, Parser};
 
 use super::layout;
+use super::state::StateStream;
 use super::tokens;
 use super::typeannotation;
+
 use elm::syntax::declaration::Declaration;
 use elm::syntax::expression::Expression;
 use elm::syntax::signature::Signature;
@@ -57,7 +59,7 @@ declaration =
         )
         */
 
-pub fn declaration<Input>() -> impl Parser<Input, Output = Declaration>
+pub fn declaration<Input>() -> impl Parser<StateStream<Input>, Output = Declaration>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -91,7 +93,7 @@ functionSignatureFromVarPointer varPointer =
         */
 
 // pub fn function_signature_from_var_pointer<'a, I>(
-// ) -> impl Parser<Input = I, Output => + 'a
+// ) -> impl Parser<StateStream<Input> = I, Output => + 'a
 // where
 //     I: 'a,
 //     I: RangeStream<Item = char, Range = &'a str>,
@@ -109,7 +111,7 @@ functionSignature =
 
         */
 
-// pub fn function_signature<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
+// pub fn function_signature<'a, I>() -> impl Parser<StateStream<Input> = I, Output = &'static str> + 'a
 // where
 //     I: 'a,
 //     I: RangeStream<Item = char, Range = &'a str>,
@@ -171,7 +173,7 @@ function =
         )
 
         */
-// pub fn function<'a, I>() -> impl Parser<Input = I, Output = &'static str> + 'a
+// pub fn function<'a, I>() -> impl Parser<StateStream<Input> = I, Output = &'static str> + 'a
 // where
 //     I: 'a,
 //     I: RangeStream<Item = char, Range = &'a str>,
@@ -188,7 +190,7 @@ signature =
         |> Combine.andMap (Layout.maybeAroundBothSides (string ":") |> Combine.continueWith (maybe Layout.layout) |> Combine.continueWith typeAnnotation)
 
         */
-pub fn signature<Input>() -> impl Parser<Input, Output = Signature>
+pub fn signature<Input>() -> impl Parser<StateStream<Input>, Output = Signature>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -237,7 +239,7 @@ portDeclaration =
         )
         */
 
-pub fn port_declaration<Input>() -> impl Parser<Input, Output = Declaration>
+pub fn port_declaration<Input>() -> impl Parser<StateStream<Input>, Output = Declaration>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -284,7 +286,7 @@ expressionNotApplication =
 
         */
 
-pub fn expression_not_application<Input>() -> impl Parser<Input, Output = Expression>
+pub fn expression_not_application<Input>() -> impl Parser<StateStream<Input>, Output = Expression>
 where
     Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -503,7 +505,7 @@ literalExpression =
         )
         */
 
-pub fn literal_expression<Input>() -> impl Parser<Input, Output = Expression>
+pub fn literal_expression<Input>() -> impl Parser<StateStream<Input>, Output = Expression>
 where
     Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -521,7 +523,7 @@ charLiteralExpression =
 
         */
 
-pub fn char_literal_expression<Input>() -> impl Parser<Input, Output = Expression>
+pub fn char_literal_expression<Input>() -> impl Parser<StateStream<Input>, Output = Expression>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -698,7 +700,7 @@ letExpression =
         )
         */
 
-pub fn float_expression<Input>() -> impl Parser<Input, Output = Expression>
+pub fn float_expression<Input>() -> impl Parser<StateStream<Input>, Output = Expression>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -823,7 +825,8 @@ recordAccessFunctionExpression =
 
         */
 
-pub fn record_access_function_expression<Input>() -> impl Parser<Input, Output = Expression>
+pub fn record_access_function_expression<Input>(
+) -> impl Parser<StateStream<Input>, Output = Expression>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,

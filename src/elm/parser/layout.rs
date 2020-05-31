@@ -2,6 +2,7 @@ use combine::ParseError;
 use combine::Parser;
 
 use super::comments;
+use super::state::StateStream;
 use super::whitespace;
 
 /*
@@ -20,7 +21,7 @@ anyComment =
         Comments.multilineComment
 */
 
-pub fn any_comment<Input>() -> impl Parser<Input, Output = ()>
+pub fn any_comment<Input>() -> impl Parser<StateStream<Input>, Output = ()>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -49,7 +50,7 @@ layout =
         |> Combine.continueWith (verifyIndent (\stateIndent current -> stateIndent < current))
 */
 
-pub fn layout<Input>() -> impl Parser<Input, Output = ()>
+pub fn layout<Input>() -> impl Parser<StateStream<Input>, Output = ()>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -134,7 +135,7 @@ layoutStrict =
         |> Combine.continueWith (verifyIndent (\stateIndent current -> stateIndent == current))
 */
 
-pub fn layout_strict<Input>() -> impl Parser<Input, Output = ()>
+pub fn layout_strict<Input>() -> impl Parser<StateStream<Input>, Output = ()>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -162,18 +163,6 @@ verifyIndent f =
         )
 */
 
-pub fn layout_strict<Input>() -> impl Parser<Input, Output = ()>
-where
-    Input: combine::Stream<Token = char>,
-    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-{
-    combine::many1(combine::choice((
-        any_comment(),
-        combine::skip_many1(whitespace::real_new_line()).with(combine::value(())),
-        whitespace::many1_spaces(),
-    )))
-}
-
 /*
 around : Parser State b -> Parser State b
 around x =
@@ -182,11 +171,11 @@ around x =
         |> Combine.ignore layout
 */
 
-pub fn around<Input, P>(p: P) -> impl Parser<Input, Output = P::Output>
+pub fn around<Input, P>(p: P) -> impl Parser<StateStream<Input>, Output = P::Output>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-    P: Parser<Input>,
+    P: Parser<StateStream<Input>>,
 {
     layout().with(p).skip(layout())
 }
@@ -199,11 +188,13 @@ maybeAroundBothSides x =
         |> Combine.ignore (maybe layout)
 */
 
-pub fn optional_around_both_sides<Input, P>(p: P) -> impl Parser<Input, Output = P::Output>
+pub fn optional_around_both_sides<Input, P>(
+    p: P,
+) -> impl Parser<StateStream<Input>, Output = P::Output>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-    P: Parser<Input>,
+    P: Parser<StateStream<Input>>,
 {
     combine::optional(layout())
         .with(p)

@@ -7,7 +7,9 @@ use elm::parser::layout;
 use elm::parser::modules::module_definition;
 use elm::syntax::file::File;
 
-pub fn file<Input>() -> impl Parser<Input, Output = File>
+use super::state::StateStream;
+
+pub fn file<Input>() -> impl Parser<StateStream<Input>, Output = File>
 where
     Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,

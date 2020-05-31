@@ -3,6 +3,8 @@ use combine::parser::char::{alpha_num, lower, string, upper};
 use combine::ParseError;
 use combine::Parser;
 
+use super::state::StateStream;
+
 const RESERVED_WORDS: &[&str] = &[
     "module", "where", "import", "as", "exposing", "type", "alias", "port", "if", "then", "else",
     "let", "in", "case", "of",
@@ -10,13 +12,7 @@ const RESERVED_WORDS: &[&str] = &[
 
 const RESERVED_OPERATORS: &[&str] = &["=", ".", "..", "->", "--", "|", ":"];
 
-struct State {
-    pub indentation: i32,
-}
-
-type StateInput<I> = combine::stream::state::Stream<I, State>;
-
-pub fn type_name<Input>() -> impl Parser<StateInput<Input>, Output = String>
+pub fn type_name<Input>() -> impl Parser<StateStream<Input>, Output = String>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -29,7 +25,7 @@ where
         })
 }
 
-pub fn function_name<Input>() -> impl Parser<Input, Output = String>
+pub fn function_name<Input>() -> impl Parser<StateStream<Input>, Output = String>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -42,7 +38,7 @@ where
         })
 }
 
-pub fn function_name_or_type_name<Input>() -> impl Parser<Input, Output = String>
+pub fn function_name_or_type_name<Input>() -> impl Parser<StateStream<Input>, Output = String>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -52,7 +48,7 @@ where
 
 // Tokens ----
 
-pub fn module_token<Input>() -> impl Parser<Input, Output = &'static str>
+pub fn module_token<Input>() -> impl Parser<StateStream<Input>, Output = &'static str>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -60,7 +56,7 @@ where
     string("module")
 }
 
-pub fn exposing_token<Input>() -> impl Parser<Input, Output = &'static str>
+pub fn exposing_token<Input>() -> impl Parser<StateStream<Input>, Output = &'static str>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -68,7 +64,7 @@ where
     string("exposing")
 }
 
-pub fn import_token<Input>() -> impl Parser<Input, Output = &'static str>
+pub fn import_token<Input>() -> impl Parser<StateStream<Input>, Output = &'static str>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -76,7 +72,7 @@ where
     string("import")
 }
 
-pub fn as_token<Input>() -> impl Parser<Input, Output = &'static str>
+pub fn as_token<Input>() -> impl Parser<StateStream<Input>, Output = &'static str>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -84,7 +80,7 @@ where
     string("as")
 }
 
-pub fn port_token<Input>() -> impl Parser<Input, Output = &'static str>
+pub fn port_token<Input>() -> impl Parser<StateStream<Input>, Output = &'static str>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -92,7 +88,7 @@ where
     string("port")
 }
 
-pub fn case_token<Input>() -> impl Parser<Input, Output = &'static str>
+pub fn case_token<Input>() -> impl Parser<StateStream<Input>, Output = &'static str>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -100,7 +96,7 @@ where
     string("case")
 }
 
-pub fn of_token<Input>() -> impl Parser<Input, Output = &'static str>
+pub fn of_token<Input>() -> impl Parser<StateStream<Input>, Output = &'static str>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -108,7 +104,7 @@ where
     string("of")
 }
 
-pub fn if_token<Input>() -> impl Parser<Input, Output = &'static str>
+pub fn if_token<Input>() -> impl Parser<StateStream<Input>, Output = &'static str>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -116,7 +112,7 @@ where
     string("if")
 }
 
-pub fn then_token<Input>() -> impl Parser<Input, Output = &'static str>
+pub fn then_token<Input>() -> impl Parser<StateStream<Input>, Output = &'static str>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -124,7 +120,7 @@ where
     string("then")
 }
 
-pub fn else_token<Input>() -> impl Parser<Input>
+pub fn else_token<Input>() -> impl Parser<StateStream<Input>>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -134,7 +130,7 @@ where
 
 // Strings ----
 
-pub fn string_literal<Input>() -> impl Parser<Input, Output = String>
+pub fn string_literal<Input>() -> impl Parser<StateStream<Input>, Output = String>
 where
     Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
@@ -147,7 +143,7 @@ where
     )
 }
 
-pub fn multi_line_string_literal<Input>() -> impl Parser<Input, Output = String>
+pub fn multi_line_string_literal<Input>() -> impl Parser<StateStream<Input>, Output = String>
 where
     Input: combine::Stream<Token = char> + combine::RangeStreamOnce,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
