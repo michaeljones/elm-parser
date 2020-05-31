@@ -4,50 +4,6 @@ use combine::Parser;
 use super::comments;
 use super::whitespace;
 
-pub fn any_comment<Input>() -> impl Parser<Input, Output = ()>
-where
-    Input: combine::Stream<Token = char>,
-    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-{
-    comments::single_line_comment()
-        .or(comments::multi_line_comment())
-        .map(|_| ())
-}
-
-pub fn layout<Input>() -> impl Parser<Input, Output = ()>
-where
-    Input: combine::Stream<Token = char>,
-    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-{
-    combine::many1(combine::choice((
-        any_comment(),
-        combine::many1(
-            whitespace::real_new_line()
-                .with(combine::choice((whitespace::many1_spaces(), any_comment()))),
-        ),
-        whitespace::many1_spaces(),
-    )))
-}
-
-pub fn around<Input, P>(p: P) -> impl Parser<Input, Output = P::Output>
-where
-    Input: combine::Stream<Token = char>,
-    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-    P: Parser<Input>,
-{
-    layout().with(p).skip(layout())
-}
-
-pub fn optional_around_both_sides<Input, P>(p: P) -> impl Parser<Input, Output = P::Output>
-where
-    Input: combine::Stream<Token = char>,
-    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
-    P: Parser<Input>,
-{
-    combine::optional(layout())
-        .with(p)
-        .skip(combine::optional(layout()))
-}
 /*
 module Elm.Parser.Layout exposing (LayoutStatus(..), anyComment, around, compute, layout, layoutAndNewLine, layoutStrict, maybeAroundBothSides, optimisticLayout, optimisticLayoutWith)
 
@@ -62,8 +18,19 @@ anyComment =
     or
         Comments.singleLineComment
         Comments.multilineComment
+*/
 
+pub fn any_comment<Input>() -> impl Parser<Input, Output = ()>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    comments::single_line_comment()
+        .or(comments::multi_line_comment())
+        .map(|_| ())
+}
 
+/*
 layout : Parser State ()
 layout =
     many1
@@ -80,8 +47,24 @@ layout =
             ]
         )
         |> Combine.continueWith (verifyIndent (\stateIndent current -> stateIndent < current))
+*/
 
+pub fn layout<Input>() -> impl Parser<Input, Output = ()>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    combine::many1(combine::choice((
+        any_comment(),
+        combine::many1(
+            whitespace::real_new_line()
+                .with(combine::choice((whitespace::many1_spaces(), any_comment()))),
+        ),
+        whitespace::many1_spaces(),
+    )))
+}
 
+/*
 type LayoutStatus
     = Strict
     | Indented
@@ -171,21 +154,43 @@ around x =
     layout
         |> Combine.continueWith x
         |> Combine.ignore layout
+*/
 
+pub fn around<Input, P>(p: P) -> impl Parser<Input, Output = P::Output>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    P: Parser<Input>,
+{
+    layout().with(p).skip(layout())
+}
 
+/*
 maybeAroundBothSides : Parser State b -> Parser State b
 maybeAroundBothSides x =
     maybe layout
         |> Combine.continueWith x
         |> Combine.ignore (maybe layout)
+*/
 
+pub fn optional_around_both_sides<Input, P>(p: P) -> impl Parser<Input, Output = P::Output>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+    P: Parser<Input>,
+{
+    combine::optional(layout())
+        .with(p)
+        .skip(combine::optional(layout()))
+}
 
+/*
 layoutAndNewLine : Combine.Parser State ()
 layoutAndNewLine =
     maybe layout
         |> Combine.ignore (many1 realNewLine)
         |> Combine.continueWith (succeed ())
-    */
+*/
 
 #[cfg(test)]
 mod tests {
