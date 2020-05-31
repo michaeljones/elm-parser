@@ -15,6 +15,7 @@ where
 {
     struct_parser!(
         DefaultModuleData {
+            _: combine::optional(tokens::port_token().skip(many1_spaces())),
             _: tokens::module_token().skip(many1_spaces()),
             module_name: module_name(),
             _: many1_spaces(),

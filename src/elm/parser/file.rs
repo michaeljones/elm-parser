@@ -1,7 +1,9 @@
 use combine::error::ParseError;
 use combine::{many, Parser};
 
+use elm::parser::declarations::declaration;
 use elm::parser::imports::import_definition;
+use elm::parser::layout;
 use elm::parser::modules::module_definition;
 use elm::syntax::file::File;
 
@@ -12,8 +14,12 @@ where
     <Input as combine::StreamOnce>::Range: combine::stream::Range,
 {
     struct_parser!(File {
+        _: combine::optional(layout::layout_strict()),
         module_definition: module_definition(),
+        _: combine::optional(layout::layout_strict()),
         imports: many(import_definition()),
+        _: combine::optional(layout::layout_strict()),
+        declarations: many(declaration()),
     })
 }
 

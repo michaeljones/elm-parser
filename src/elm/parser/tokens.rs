@@ -10,7 +10,13 @@ const RESERVED_WORDS: &[&str] = &[
 
 const RESERVED_OPERATORS: &[&str] = &["=", ".", "..", "->", "--", "|", ":"];
 
-pub fn type_name<Input>() -> impl Parser<Input, Output = String>
+struct State {
+    pub indentation: i32,
+}
+
+type StateInput<I> = combine::stream::state::Stream<I, State>;
+
+pub fn type_name<Input>() -> impl Parser<StateInput<Input>, Output = String>
 where
     Input: combine::Stream<Token = char>,
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,

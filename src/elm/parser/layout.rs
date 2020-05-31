@@ -132,8 +132,21 @@ layoutStrict =
             ]
         )
         |> Combine.continueWith (verifyIndent (\stateIndent current -> stateIndent == current))
+*/
 
+pub fn layout_strict<Input>() -> impl Parser<Input, Output = ()>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    combine::many1(combine::choice((
+        any_comment(),
+        combine::skip_many1(whitespace::real_new_line()).with(combine::value(())),
+        whitespace::many1_spaces(),
+    )))
+}
 
+/*
 verifyIndent : (Int -> Int -> Bool) -> Parser State ()
 verifyIndent f =
     withState
@@ -147,8 +160,21 @@ verifyIndent f =
                         fail ("Expected higher indent than " ++ String.fromInt l.column)
                 )
         )
+*/
 
+pub fn layout_strict<Input>() -> impl Parser<Input, Output = ()>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
+{
+    combine::many1(combine::choice((
+        any_comment(),
+        combine::skip_many1(whitespace::real_new_line()).with(combine::value(())),
+        whitespace::many1_spaces(),
+    )))
+}
 
+/*
 around : Parser State b -> Parser State b
 around x =
     layout
@@ -211,6 +237,11 @@ mod tests {
     #[test]
     fn layout_1() {
         assert_eq!(layout().parse(" "), Ok(((), "")));
+    }
+
+    #[test]
+    fn layout_strict_1() {
+        assert_eq!(layout_strict().parse("\n"), Ok(((), "")));
     }
 
     // #[test]
