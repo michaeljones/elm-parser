@@ -15,6 +15,7 @@ pub enum TopLevelExpose {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExposedType {
     pub name: String,
+    pub open: bool,
 }
 
 /*

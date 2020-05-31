@@ -3,7 +3,7 @@ use combine::ParseError;
 use combine::{between, choice, many, satisfy, sep_by, value, Parser};
 
 use super::tokens::{exposing_token, function_name, type_name};
-use elm::syntax::exposing::{Exposing, TopLevelExpose};
+use elm::syntax::exposing::{ExposedType, Exposing, TopLevelExpose};
 
 pub fn expose_definition<Input>() -> impl Parser<Input, Output = Exposing>
 where
@@ -11,15 +11,29 @@ where
     Input::Error: ParseError<Input::Token, Input::Range, Input::Position>,
     <Input as combine::StreamOnce>::Range: combine::stream::Range,
 {
-    let type_expose = type_name().map(TopLevelExpose::TypeOrAliasExpose);
+    let type_expose = type_name()
+        .skip(char('('))
+        .skip(string(".."))
+        .skip(char(')'))
+        .map(|name| {
+            TopLevelExpose::TypeExpose(ExposedType {
+                name: name,
+                open: true,
+            })
+        });
+    let type_or_alias_expose = type_name().map(TopLevelExpose::TypeOrAliasExpose);
     let function_expose = function_name().map(TopLevelExpose::FunctionExpose);
     let infix_expose =
         between(char('('), char(')'), many(satisfy(|c| c != ')'))).map(TopLevelExpose::InfixExpose);
 
-    let exposable = choice((type_expose, infix_expose, function_expose));
+    let exposable = choice((
+        combine::attempt(type_expose),
+        type_or_alias_expose,
+        infix_expose,
+        function_expose,
+    ));
 
     let list = sep_by::<Vec<_>, _, _, _>(exposable, char(',')).map(Exposing::Explicit);
-
     let all = string("..").with(value(Exposing::All));
 
     exposing_token()
@@ -50,6 +64,20 @@ mod tests {
             expose_definition().parse("exposing (Abc)"),
             Ok((
                 Exposing::Explicit(vec![TopLevelExpose::TypeOrAliasExpose("Abc".to_string())]),
+                ""
+            ))
+        );
+    }
+
+    #[test]
+    fn exposing_types_with_all_constructors() {
+        assert_eq!(
+            expose_definition().parse("exposing (Abc(..))"),
+            Ok((
+                Exposing::Explicit(vec![TopLevelExpose::TypeExpose(ExposedType {
+                    name: "Abc".to_string(),
+                    open: true
+                })]),
                 ""
             ))
         );
