@@ -2,6 +2,7 @@ use combine::parser::char::{char, space, spaces, string};
 use combine::ParseError;
 use combine::{between, choice, many, satisfy, sep_by, value, Parser};
 
+use super::layout::optional_around_both_sides;
 use super::tokens::{exposing_token, function_name, type_name};
 use elm::syntax::exposing::{ExposedType, Exposing, TopLevelExpose};
 
@@ -33,7 +34,8 @@ where
         function_expose,
     ));
 
-    let list = sep_by::<Vec<_>, _, _, _>(exposable, char(',')).map(Exposing::Explicit);
+    let list = sep_by::<Vec<_>, _, _, _>(optional_around_both_sides(exposable), char(','))
+        .map(Exposing::Explicit);
     let all = string("..").with(value(Exposing::All));
 
     exposing_token()
@@ -86,7 +88,7 @@ mod tests {
     #[test]
     fn exposing_functions() {
         assert_eq!(
-            expose_definition().parse("exposing (abc,def)"),
+            expose_definition().parse("exposing (abc, def)"),
             Ok((
                 Exposing::Explicit(vec![
                     TopLevelExpose::FunctionExpose("abc".to_string()),
@@ -114,7 +116,7 @@ mod tests {
     #[test]
     fn exposing_mix() {
         assert_eq!(
-            expose_definition().parse("exposing (Abc,abc,(--))"),
+            expose_definition().parse("exposing ( Abc, abc,(--))"),
             Ok((
                 Exposing::Explicit(vec![
                     TopLevelExpose::TypeOrAliasExpose("Abc".to_string()),
