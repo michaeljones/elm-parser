@@ -3,6 +3,10 @@ pub enum Expr {
     BinOp(Box<Expr>, Op, Box<Expr>),
     Float(f64),
     Int(i64),
+    Char(String),
+    Variable(String),
+    TypeConstructor(String),
+    List(Vec<Expr>),
 }
 
 #[derive(Debug, PartialEq)]

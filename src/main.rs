@@ -5,17 +5,85 @@ mod ast;
 
 lalrpop_mod!(pub elm); // synthesized by LALRPOP
 
+// List Constructor
+
+#[test]
+fn list_constructor_parser_test() {
+    let code = "[1,2,3]";
+    assert_eq!(
+        elm::ExprParser::new().parse(code),
+        Ok(ast::Expr::List(vec![
+            ast::Expr::Int(1),
+            ast::Expr::Int(2),
+            ast::Expr::Int(3)
+        ]))
+    );
+}
+
+// Type Constructor
+
+#[test]
+fn type_constructor_parser_test() {
+    let code = "Abc";
+    assert_eq!(
+        elm::ExprParser::new().parse(code),
+        Ok(ast::Expr::TypeConstructor("Abc".to_string()))
+    );
+}
+
+// Variables
+
+#[test]
+fn variable_parser_test() {
+    let code = "abc";
+    assert_eq!(
+        elm::ExprParser::new().parse(code),
+        Ok(ast::Expr::Variable("abc".to_string()))
+    );
+}
+
+#[test]
+fn variable_in_expression_parser_test() {
+    let code = "abc + 3";
+    assert_eq!(
+        elm::ExprParser::new().parse(code),
+        Ok(ast::Expr::BinOp(
+            Box::new(ast::Expr::Variable("abc".to_string())),
+            ast::Op::Add,
+            Box::new(ast::Expr::Int(3))
+        ))
+    );
+}
+
+// Char
+
+#[test]
+fn char_parser_test() {
+    let code = "'a'";
+    assert_eq!(
+        elm::ExprParser::new().parse(code),
+        Ok(ast::Expr::Char("a".to_string()))
+    );
+}
+
+// Numbers
+
 #[test]
 fn int_parser_test() {
     let code = "2";
-    assert_eq!(elm::IntParser::new().parse(code), Ok(2));
+    assert_eq!(elm::ExprParser::new().parse(code), Ok(ast::Expr::Int(2)));
 }
 
 #[test]
 fn float_parser_test() {
     let code = "2.3";
-    assert_eq!(elm::FloatParser::new().parse(code), Ok(2.3));
+    assert_eq!(
+        elm::ExprParser::new().parse(code),
+        Ok(ast::Expr::Float(2.3))
+    );
 }
+
+// Math Operations
 
 #[test]
 fn add_parser_test() {

@@ -1,41 +1,77 @@
 use std::str::FromStr;
 
+use lalrpop_util::ParseError;
+
 use crate::ast;
 
 grammar;
 
+// Expr
+
 pub Expr: ast::Expr = {
+    List,
+    MathOp0,
+}
+
+// List Syntax
+
+List: ast::Expr = {
+    "[" <Comma<Expr>> "]" => ast::Expr::List(<>),
+}
+
+// Math Operations
+
+MathOp0: ast::Expr = {
     <l:Expr> "-" <r:MathOp1> => ast::Expr::BinOp(Box::new(l), ast::Op::Subtract, Box::new(r)),
     MathOp1,
 }
 
-pub MathOp1: ast::Expr = {
+MathOp1: ast::Expr = {
     <l:MathOp1> "+" <r:MathOp2> => ast::Expr::BinOp(Box::new(l), ast::Op::Add, Box::new(r)),
     MathOp2
 }
 
-pub MathOp2: ast::Expr = {
+MathOp2: ast::Expr = {
     <l:MathOp2> "*" <r:MathOp3> => ast::Expr::BinOp(Box::new(l), ast::Op::Multiply, Box::new(r)),
     MathOp3
 }
 
-pub MathOp3: ast::Expr = {
+MathOp3: ast::Expr = {
     <l:MathOp3> "//" <r:Term> => ast::Expr::BinOp(Box::new(l), ast::Op::Divide, Box::new(r)),
     Term
 }
 
-pub Term: ast::Expr = {
+Term: ast::Expr = {
+    TypeConstructor => ast::Expr::TypeConstructor(<>),
+    Variable => ast::Expr::Variable(<>),
     Float => ast::Expr::Float(<>),
     Int => ast::Expr::Int(<>),
+    "'" <Char> => ast::Expr::Char(<>),
     "(" <Expr> ")",
 }
 
-pub Float: f64 = <s:float> => f64::from_str(s).unwrap();
-pub Int: i64 = <s:int> => i64::from_str(s).unwrap();
+pub Float: f64 = <s:float> =>? f64::from_str(s).map_err(|_| ParseError::User { error: "Not a float" });
+pub Int: i64 = <s:int> =>? i64::from_str(s).map_err(|_| ParseError::User { error: "Not an int" });
+pub Char: String = <s:r".'"> => { let mut char = s.to_string(); char.pop(); char };
+pub Variable: String = <s:variable_name> => s.to_string();
+pub TypeConstructor: String = <s:type_or_module_name> => s.to_string();
 
 match {
-    r"[0-9]+.[0-9]+" => float,
+    r"[0-9]+\.[0-9]+" => float,
 } else {
     r"[0-9]+" => int,
+    r"[a-z][A-Za-z0-9]*" => variable_name,
+    r"[A-Z][A-Za-z0-9]*" => type_or_module_name,
+} else { 
     _
 }
+
+// Helpers
+
+Comma<T>: Vec<T> = {
+    <v:(<T> ",")*> <e:T> => {
+        let mut v = v;
+        v.push(e);
+        v
+    }
+};
