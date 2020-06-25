@@ -1,10 +1,41 @@
 use std::str::FromStr;
 
+use crate::ast;
+
 grammar;
 
-pub Term: i32 = {
-    <n:Num> => n,
-    "(" <t:Term> ")" => t,
-};
+pub Expr: ast::Expr = {
+    <l:Expr> "-" <r:MathOp1> => ast::Expr::BinOp(Box::new(l), ast::Op::Subtract, Box::new(r)),
+    MathOp1,
+}
 
-Num: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
+pub MathOp1: ast::Expr = {
+    <l:MathOp1> "+" <r:MathOp2> => ast::Expr::BinOp(Box::new(l), ast::Op::Add, Box::new(r)),
+    MathOp2
+}
+
+pub MathOp2: ast::Expr = {
+    <l:MathOp2> "*" <r:MathOp3> => ast::Expr::BinOp(Box::new(l), ast::Op::Multiply, Box::new(r)),
+    MathOp3
+}
+
+pub MathOp3: ast::Expr = {
+    <l:MathOp3> "//" <r:Term> => ast::Expr::BinOp(Box::new(l), ast::Op::Divide, Box::new(r)),
+    Term
+}
+
+pub Term: ast::Expr = {
+    Float => ast::Expr::Float(<>),
+    Int => ast::Expr::Int(<>),
+    "(" <Expr> ")",
+}
+
+pub Float: f64 = <s:float> => f64::from_str(s).unwrap();
+pub Int: i64 = <s:int> => i64::from_str(s).unwrap();
+
+match {
+    r"[0-9]+.[0-9]+" => float,
+} else {
+    r"[0-9]+" => int,
+    _
+}
