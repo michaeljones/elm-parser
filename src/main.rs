@@ -59,10 +59,10 @@ fn variable_in_expression_parser_test() {
 
 #[test]
 fn char_parser_test() {
-    let code = "'a'";
+    let code = "'1'";
     assert_eq!(
         elm::ExprParser::new().parse(code),
-        Ok(ast::Expr::Char("a".to_string()))
+        Ok(ast::Expr::Char("1".to_string()))
     );
 }
 

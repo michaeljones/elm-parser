@@ -46,13 +46,13 @@ Term: ast::Expr = {
     Variable => ast::Expr::Variable(<>),
     Float => ast::Expr::Float(<>),
     Int => ast::Expr::Int(<>),
-    "'" <Char> => ast::Expr::Char(<>),
+    Char => ast::Expr::Char(<>),
     "(" <Expr> ")",
 }
 
 pub Float: f64 = <s:float> =>? f64::from_str(s).map_err(|_| ParseError::User { error: "Not a float" });
 pub Int: i64 = <s:int> =>? i64::from_str(s).map_err(|_| ParseError::User { error: "Not an int" });
-pub Char: String = <s:r".'"> => { let mut char = s.to_string(); char.pop(); char };
+pub Char: String = "'" <s:r"."> "'" => s.to_string();
 pub Variable: String = <s:variable_name> => s.to_string();
 pub TypeConstructor: String = <s:type_or_module_name> => s.to_string();
 
