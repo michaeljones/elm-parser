@@ -1,4 +1,3 @@
-#[macro_use]
-extern crate regex;
+extern crate logos;
 
-mod ast;
+mod lexer;

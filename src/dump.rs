@@ -1,11 +1,10 @@
-#[macro_use]
-extern crate nom;
 extern crate clap;
+extern crate logos;
 extern crate regex;
 extern crate walkdir;
 
 use clap::{App, Arg};
-use nom::types::CompleteStr;
+use logos::Logos;
 use walkdir::WalkDir;
 
 use std::env;
@@ -13,9 +12,8 @@ use std::ffi::OsStr;
 use std::fs::File;
 use std::io::prelude::*;
 
-mod ast;
-
-use ast::file;
+mod lexer;
+use lexer::Token;
 
 fn dump_file(filename: &str, quiet: bool) {
     let mut f = File::open(filename).expect("file not found");
@@ -24,8 +22,10 @@ fn dump_file(filename: &str, quiet: bool) {
     f.read_to_string(&mut contents)
         .expect("something went wrong reading the file");
 
-    let result = file(CompleteStr(&contents));
+    let result = Token::lexer(&contents);
 
+    println!("{:#?}", result.collect::<Vec<Token>>())
+    /*
     match result {
         Ok((_, ast)) => {
             if quiet {
@@ -42,6 +42,7 @@ fn dump_file(filename: &str, quiet: bool) {
             }
         }
     }
+                    */
 }
 
 fn dump_directory(path: &str, quiet: bool) -> walkdir::Result<()> {
