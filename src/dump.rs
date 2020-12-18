@@ -5,9 +5,9 @@ extern crate walkdir;
 
 use clap::{App, Arg};
 use logos::Logos;
-use walkdir::WalkDir;
+// use walkdir::WalkDir;
 
-use std::ffi::OsStr;
+// use std::ffi::OsStr;
 use std::fs::File;
 use std::io::prelude::*;
 
@@ -49,6 +49,7 @@ fn dump_file(filename: &str, _quiet: bool) {
                     */
 }
 
+/*
 fn dump_directory(path: &str, quiet: bool) -> walkdir::Result<()> {
     for entry in WalkDir::new(path) {
         let ent = entry?;
@@ -69,6 +70,7 @@ fn dump_directory(path: &str, quiet: bool) -> walkdir::Result<()> {
 
     Ok(())
 }
+*/
 
 fn main() {
     let matches = App::new("elm-parser-dump")
@@ -84,7 +86,7 @@ fn main() {
             let attr = std::fs::metadata(path).expect("file not found");
 
             if attr.is_dir() {
-                dump_directory(path, quiet);
+                // dump_directory(path, quiet);
             } else {
                 dump_file(path, quiet);
             }
