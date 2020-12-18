@@ -1,6 +1,6 @@
 use logos::{Lexer, Logos};
 
-#[derive(Logos, Debug, PartialEq)]
+#[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token<'a> {
     // Keywords
     #[token("module")]

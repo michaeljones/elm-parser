@@ -7,15 +7,16 @@ use clap::{App, Arg};
 use logos::Logos;
 use walkdir::WalkDir;
 
-use std::env;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::prelude::*;
 
 mod lexer;
+mod parser;
+
 use lexer::Token;
 
-fn dump_file(filename: &str, quiet: bool) {
+fn dump_file(filename: &str, _quiet: bool) {
     let mut f = File::open(filename).expect("file not found");
 
     let mut contents = String::new();
@@ -24,7 +25,10 @@ fn dump_file(filename: &str, quiet: bool) {
 
     let result = Token::lexer(&contents);
 
-    println!("{:#?}", result.collect::<Vec<Token>>())
+    let ast = parser::parse(result);
+
+    println!("{:#?}", &ast)
+
     /*
     match result {
         Ok((_, ast)) => {
@@ -72,8 +76,6 @@ fn main() {
         .arg(Arg::with_name("quiet").short("q").long("quiet"))
         .arg(Arg::with_name("path").index(1))
         .get_matches();
-
-    let args: Vec<String> = env::args().collect();
 
     match matches.value_of("path") {
         Some(path) => {
