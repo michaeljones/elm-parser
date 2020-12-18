@@ -4,13 +4,19 @@ use logos::Lexer;
 #[derive(Debug)]
 pub struct Module<'a> {
     name: &'a str,
+    imports: Vec<Import<'a>>,
+}
+
+#[derive(Debug)]
+pub struct Import<'a> {
+    module_name: &'a str,
 }
 
 #[derive(Debug)]
 pub enum Error<'a> {
     UnexpectedToken {
-        found: Token<'a>,
         expected: Token<'a>,
+        found: Token<'a>,
     },
     ExpectedSpace(Token<'a>),
     UnexpectedEnd,
@@ -19,7 +25,6 @@ pub enum Error<'a> {
 pub fn parse<'a>(tokens: Lexer<'a, Token<'a>>) -> Result<Module<'a>, Error> {
     let mut iter = tokens.peekable();
     while let Some(token) = iter.next() {
-        println!("{:?}", &token);
         matches(&Some(token), Token::Module)?;
         matches_space(&iter.next())?;
         let name = extract_type_or_module_name(&iter.next())?;
@@ -30,10 +35,54 @@ pub fn parse<'a>(tokens: Lexer<'a, Token<'a>>) -> Result<Module<'a>, Error> {
         matches(&iter.next(), Token::Ellipsis)?;
         matches(&iter.next(), Token::CloseParen)?;
 
-        return Ok(Module { name });
+        consume_til_line_start(&mut iter);
+
+        let imports = parse_imports(&mut iter)?;
+
+        return Ok(Module { name, imports });
     }
 
     Err(Error::UnexpectedEnd)
+}
+
+type TokenIter<'a> = std::iter::Peekable<logos::Lexer<'a, Token<'a>>>;
+
+fn consume_til_line_start<'a>(mut iter: &mut TokenIter<'a>) {
+    while let Some(token) = iter.peek() {
+        match token {
+            Token::NewLine => {
+                iter.next();
+                consume_spaces(&mut iter);
+            }
+            _ => return,
+        }
+    }
+}
+
+fn consume_spaces(iter: &mut TokenIter) {
+    while matches!(iter.peek(), Some(Token::Space(_))) {
+        iter.next();
+    }
+}
+
+fn parse_imports<'a>(mut iter: &mut TokenIter<'a>) -> Result<Vec<Import<'a>>, Error<'a>> {
+    let mut imports = vec![];
+
+    loop {
+        if !matches!(iter.peek(), Some(Token::Import)) {
+            break;
+        }
+
+        matches(&iter.next(), Token::Import)?;
+        matches_space(&iter.next())?;
+        let module_name = extract_type_or_module_name(&iter.next())?;
+
+        imports.push(Import { module_name });
+
+        consume_til_line_start(&mut iter);
+    }
+
+    Ok(imports)
 }
 
 fn matches<'a>(stream_token: &Option<Token<'a>>, match_token: Token<'a>) -> Result<(), Error<'a>> {
