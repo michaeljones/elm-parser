@@ -5,7 +5,7 @@ use logos::Lexer;
 pub struct Module<'a> {
     name: &'a str,
     imports: Vec<Import<'a>>,
-    statements: Vec<Stmt<'a>>,
+    pub statements: Vec<Stmt<'a>>,
 }
 
 #[derive(Debug)]
@@ -25,6 +25,7 @@ pub enum Expr {
 
 #[derive(Debug)]
 pub enum Error<'a> {
+    UnexpectedExpressionToken,
     UnexpectedToken {
         expected: Token<'a>,
         found: Token<'a>,
@@ -123,6 +124,9 @@ fn parse_statements<'a>(mut iter: &mut TokenIter<'a>) -> Result<Vec<Stmt<'a>>, E
         statements.push(Stmt::Function { name, expr });
 
         consume_til_line_start(&mut iter);
+
+        // Consume everything else
+        while let Some(_token) = iter.next() {}
     }
 
     Ok(statements)
@@ -130,9 +134,10 @@ fn parse_statements<'a>(mut iter: &mut TokenIter<'a>) -> Result<Vec<Stmt<'a>>, E
 
 // Expressions
 fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expr, Error<'a>> {
-    while let Some(_token) = iter.next() {}
-
-    Ok(Expr::Integer(5))
+    match iter.next() {
+        Some(Token::LiteralInteger(int)) => Ok(Expr::Integer(int)),
+        _ => Err(Error::UnexpectedExpressionToken),
+    }
 }
 
 fn matches<'a>(stream_token: &Option<Token<'a>>, match_token: Token<'a>) -> Result<(), Error<'a>> {

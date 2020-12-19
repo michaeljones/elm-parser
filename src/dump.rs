@@ -11,12 +11,19 @@ use logos::Logos;
 use std::fs::File;
 use std::io::prelude::*;
 
+mod evaluate;
 mod lexer;
 mod parser;
 
 use lexer::Token;
 
-fn dump_file(filename: &str, _quiet: bool) {
+#[derive(Debug)]
+enum Error {
+    ParserError,
+    EvaluateError,
+}
+
+fn dump_file(filename: &str, _quiet: bool) -> Result<(), Error> {
     let mut f = File::open(filename).expect("file not found");
 
     let mut contents = String::new();
@@ -25,54 +32,20 @@ fn dump_file(filename: &str, _quiet: bool) {
 
     let result = Token::lexer(&contents);
 
-    let ast = parser::parse(result);
+    let module = parser::parse(result).map_err(|err| {
+        println!("{:?}", &err);
+        Error::ParserError
+    })?;
 
-    println!("{:#?}", &ast)
-
-    /*
-    match result {
-        Ok((_, ast)) => {
-            if quiet {
-                println!("{:?} parsed successfully", filename)
-            } else {
-                println!("{:#?}", ast)
-            }
-        }
-        Err(error) => {
-            if quiet {
-                println!("{:?} failed to parse", filename)
-            } else {
-                println!("{:#?}", error)
-            }
-        }
-    }
-                    */
-}
-
-/*
-fn dump_directory(path: &str, quiet: bool) -> walkdir::Result<()> {
-    for entry in WalkDir::new(path) {
-        let ent = entry?;
-
-        if ent.path().is_dir() {
-            continue;
-        }
-
-        if ent.path().extension() != Some(OsStr::new("elm")) {
-            continue;
-        }
-
-        match ent.path().to_str() {
-            Some(path) => dump_file(path, quiet),
-            None => {}
-        }
-    }
+    evaluate::evaluate(&module).map_err(|err| {
+        println!("{:?}", &err);
+        Error::EvaluateError
+    })?;
 
     Ok(())
 }
-*/
 
-fn main() {
+fn main() -> Result<(), Error> {
     let matches = App::new("elm-parser-dump")
         .version("0.1")
         .arg(Arg::with_name("quiet").short("q").long("quiet"))
@@ -86,11 +59,11 @@ fn main() {
             let attr = std::fs::metadata(path).expect("file not found");
 
             if attr.is_dir() {
-                // dump_directory(path, quiet);
+                Ok(())
             } else {
-                dump_file(path, quiet);
+                dump_file(path, quiet)
             }
         }
-        None => {}
+        None => Ok(()),
     }
 }
