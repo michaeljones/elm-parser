@@ -69,7 +69,7 @@ pub enum Token<'a> {
     Ellipsis,
 
     #[token("=")]
-    Equal,
+    Equals,
 
     #[token(":")]
     Colon,
@@ -85,7 +85,7 @@ pub enum Token<'a> {
     TypeOrModuleName(&'a str),
 
     #[regex("[a-z_][a-zA-Z0-9]*")]
-    Name(&'a str),
+    VarName(&'a str),
 
     #[regex(r#"[+><!*-:|]+"#)]
     Operator(&'a str),

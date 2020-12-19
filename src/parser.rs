@@ -5,11 +5,22 @@ use logos::Lexer;
 pub struct Module<'a> {
     name: &'a str,
     imports: Vec<Import<'a>>,
+    statements: Vec<Stmt<'a>>,
 }
 
 #[derive(Debug)]
 pub struct Import<'a> {
     module_name: &'a str,
+}
+
+#[derive(Debug)]
+pub enum Stmt<'a> {
+    Function { name: &'a str, expr: Expr },
+}
+
+#[derive(Debug)]
+pub enum Expr {
+    Integer(i32),
 }
 
 #[derive(Debug)]
@@ -39,7 +50,15 @@ pub fn parse<'a>(tokens: Lexer<'a, Token<'a>>) -> Result<Module<'a>, Error> {
 
         let imports = parse_imports(&mut iter)?;
 
-        return Ok(Module { name, imports });
+        consume_til_line_start(&mut iter);
+
+        let statements = parse_statements(&mut iter)?;
+
+        return Ok(Module {
+            name,
+            imports,
+            statements,
+        });
     }
 
     Err(Error::UnexpectedEnd)
@@ -65,6 +84,7 @@ fn consume_spaces(iter: &mut TokenIter) {
     }
 }
 
+// Imports
 fn parse_imports<'a>(mut iter: &mut TokenIter<'a>) -> Result<Vec<Import<'a>>, Error<'a>> {
     let mut imports = vec![];
 
@@ -83,6 +103,36 @@ fn parse_imports<'a>(mut iter: &mut TokenIter<'a>) -> Result<Vec<Import<'a>>, Er
     }
 
     Ok(imports)
+}
+
+// Statements
+fn parse_statements<'a>(mut iter: &mut TokenIter<'a>) -> Result<Vec<Stmt<'a>>, Error<'a>> {
+    let mut statements = vec![];
+
+    loop {
+        if !matches!(iter.peek(), Some(Token::VarName(_))) {
+            break;
+        }
+
+        let name = extract_var_name(&iter.next())?;
+        matches_space(&iter.next())?;
+        matches(&iter.next(), Token::Equals)?;
+        matches_space(&iter.next())?;
+        let expr = parse_expression(&mut iter)?;
+
+        statements.push(Stmt::Function { name, expr });
+
+        consume_til_line_start(&mut iter);
+    }
+
+    Ok(statements)
+}
+
+// Expressions
+fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expr, Error<'a>> {
+    while let Some(_token) = iter.next() {}
+
+    Ok(Expr::Integer(5))
 }
 
 fn matches<'a>(stream_token: &Option<Token<'a>>, match_token: Token<'a>) -> Result<(), Error<'a>> {
@@ -112,6 +162,17 @@ fn matches_space<'a>(stream_token: &Option<Token<'a>>) -> Result<(), Error<'a>> 
 fn extract_type_or_module_name<'a>(stream_token: &Option<Token<'a>>) -> Result<&'a str, Error<'a>> {
     match stream_token {
         Some(Token::TypeOrModuleName(name)) => Ok(name),
+        Some(token) => Err(Error::UnexpectedToken {
+            found: token.clone(),
+            expected: Token::TypeOrModuleName(""),
+        }),
+        None => Err(Error::UnexpectedEnd),
+    }
+}
+
+fn extract_var_name<'a>(stream_token: &Option<Token<'a>>) -> Result<&'a str, Error<'a>> {
+    match stream_token {
+        Some(Token::VarName(name)) => Ok(name),
         Some(token) => Err(Error::ExpectedSpace(token.clone())),
         None => Err(Error::UnexpectedEnd),
     }
