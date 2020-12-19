@@ -15,12 +15,17 @@ pub struct Import<'a> {
 
 #[derive(Debug)]
 pub enum Stmt<'a> {
-    Function { name: &'a str, expr: Expr },
+    Function { name: &'a str, expr: Expr<'a> },
 }
 
 #[derive(Debug)]
-pub enum Expr {
+pub enum Expr<'a> {
     Integer(i32),
+    BinOp {
+        operator: &'a str,
+        left: Box<Expr<'a>>,
+        right: Box<Expr<'a>>,
+    },
 }
 
 #[derive(Debug)]
@@ -32,37 +37,41 @@ pub enum Error<'a> {
     },
     ExpectedSpace(Token<'a>),
     UnexpectedEnd,
+    Indent,
+    TokensRemaining,
+    NoOperand,
+    NoOperator,
 }
 
 pub fn parse<'a>(tokens: Lexer<'a, Token<'a>>) -> Result<Module<'a>, Error> {
     let mut iter = tokens.peekable();
-    while let Some(token) = iter.next() {
-        matches(&Some(token), Token::Module)?;
-        matches_space(&iter.next())?;
-        let name = extract_type_or_module_name(&iter.next())?;
-        matches_space(&iter.next())?;
-        matches(&iter.next(), Token::Exposing)?;
-        matches_space(&iter.next())?;
-        matches(&iter.next(), Token::OpenParen)?;
-        matches(&iter.next(), Token::Ellipsis)?;
-        matches(&iter.next(), Token::CloseParen)?;
+    matches(&iter.next(), Token::Module)?;
+    matches_space(&iter.next())?;
+    let name = extract_type_or_module_name(&iter.next())?;
+    matches_space(&iter.next())?;
+    matches(&iter.next(), Token::Exposing)?;
+    matches_space(&iter.next())?;
+    matches(&iter.next(), Token::OpenParen)?;
+    matches(&iter.next(), Token::Ellipsis)?;
+    matches(&iter.next(), Token::CloseParen)?;
 
-        consume_til_line_start(&mut iter);
+    consume_til_line_start(&mut iter);
 
-        let imports = parse_imports(&mut iter)?;
+    let imports = parse_imports(&mut iter)?;
 
-        consume_til_line_start(&mut iter);
+    consume_til_line_start(&mut iter);
 
-        let statements = parse_statements(&mut iter)?;
+    let statements = parse_statements(&mut iter)?;
 
-        return Ok(Module {
+    if iter.next() == None {
+        Ok(Module {
             name,
             imports,
             statements,
-        });
+        })
+    } else {
+        Err(Error::TokensRemaining)
     }
-
-    Err(Error::UnexpectedEnd)
 }
 
 type TokenIter<'a> = std::iter::Peekable<logos::Lexer<'a, Token<'a>>>;
@@ -106,6 +115,44 @@ fn parse_imports<'a>(mut iter: &mut TokenIter<'a>) -> Result<Vec<Import<'a>>, Er
     Ok(imports)
 }
 
+struct Context {
+    base_indent: usize,
+    current_indent: usize,
+}
+
+impl Context {
+    pub fn new() -> Context {
+        Context {
+            base_indent: 0,
+            current_indent: 0,
+        }
+    }
+
+    pub fn consume_white_space<'a>(&mut self, iter: &mut TokenIter<'a>) -> Result<(), Error<'a>> {
+        while let Some(ref token) = iter.peek() {
+            match token {
+                Token::NewLine => {
+                    iter.next();
+                    self.current_indent = 0
+                }
+                Token::Space(ref count) => {
+                    self.current_indent += count;
+                    iter.next();
+                }
+                _ => {
+                    if self.current_indent > self.base_indent {
+                        return Ok(());
+                    } else {
+                        return Err(Error::Indent);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
 // Statements
 fn parse_statements<'a>(mut iter: &mut TokenIter<'a>) -> Result<Vec<Stmt<'a>>, Error<'a>> {
     let mut statements = vec![];
@@ -118,22 +165,106 @@ fn parse_statements<'a>(mut iter: &mut TokenIter<'a>) -> Result<Vec<Stmt<'a>>, E
         let name = extract_var_name(&iter.next())?;
         matches_space(&iter.next())?;
         matches(&iter.next(), Token::Equals)?;
-        matches_space(&iter.next())?;
-        let expr = parse_expression(&mut iter)?;
+        let mut context = Context::new();
+        context.consume_white_space(&mut iter)?;
+
+        let expr = parse_expression(&mut iter, &mut context)?;
 
         statements.push(Stmt::Function { name, expr });
 
         consume_til_line_start(&mut iter);
-
-        // Consume everything else
-        while let Some(_token) = iter.next() {}
     }
 
     Ok(statements)
 }
 
 // Expressions
-fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expr, Error<'a>> {
+//
+// Shunting yard approach based on:
+//   - https://eli.thegreenplace.net/2009/03/20/a-recursive-descent-parser-with-an-infix-expression-evaluator
+//   - http://www.engr.mun.ca/~theo/Misc/exp_parsing.htm
+//
+fn parse_expression<'a>(
+    mut iter: &mut TokenIter<'a>,
+    context: &mut Context,
+) -> Result<Expr<'a>, Error<'a>> {
+    let expr = parse_singular_expression(&mut iter)?;
+    context.consume_white_space(&mut iter)?;
+
+    let mut operator_stack = Vec::new();
+    let mut operand_stack = vec![expr];
+
+    while matches!(iter.peek(), Some(Token::Operator(_))) {
+        let operator = extract_operator(&iter.next())?;
+        context.consume_white_space(&mut iter)?;
+
+        manip_stacks(operator, &mut operator_stack, &mut operand_stack)?;
+
+        let right_hand_expr = parse_singular_expression(&mut iter)?;
+        context.consume_white_space(&mut iter)?;
+        operand_stack.push(right_hand_expr);
+    }
+
+    while operator_stack.len() > 0 {
+        let operator = operator_stack.pop().ok_or(Error::NoOperator)?;
+        let right_hand_expr = operand_stack.pop().ok_or(Error::NoOperand)?;
+        let left_hand_expr = operand_stack.pop().ok_or(Error::NoOperand)?;
+
+        operand_stack.push(Expr::BinOp {
+            operator,
+            left: Box::new(left_hand_expr),
+            right: Box::new(right_hand_expr),
+        })
+    }
+
+    assert!(operand_stack.len() == 1);
+    operand_stack.pop().ok_or(Error::NoOperand)
+}
+
+fn manip_stacks<'a>(
+    operator: &'a str,
+    mut operator_stack: &mut Vec<&'a str>,
+    mut operand_stack: &mut Vec<Expr<'a>>,
+) -> Result<(), Error<'a>> {
+    if has_greater_precendence(operator, &operator_stack) {
+        operator_stack.push(operator);
+    } else {
+        let right_hand_expr = operand_stack.pop().ok_or(Error::NoOperand)?;
+        let left_hand_expr = operand_stack.pop().ok_or(Error::NoOperand)?;
+        let stored_operator = operator_stack.pop().ok_or(Error::NoOperator)?;
+
+        operand_stack.push(Expr::BinOp {
+            operator: stored_operator,
+            left: Box::new(left_hand_expr),
+            right: Box::new(right_hand_expr),
+        });
+
+        manip_stacks(operator, &mut operator_stack, &mut operand_stack)?;
+    };
+
+    Ok(())
+}
+
+fn has_greater_precendence<'a>(operator_a: &'a str, operator_stack: &Vec<&'a str>) -> bool {
+    if operator_stack.is_empty() {
+        true
+    } else {
+        let precedence_a = precendence(operator_a);
+        let precedence_b = operator_stack.last().map(|op| precendence(op)).unwrap_or(0);
+
+        precedence_a > precedence_b
+    }
+}
+
+fn precendence<'a>(operator: &'a str) -> usize {
+    match operator {
+        "*" | "/" => 7,
+        "+" | "-" => 6,
+        _ => 0,
+    }
+}
+
+fn parse_singular_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expr<'a>, Error<'a>> {
     match iter.next() {
         Some(Token::LiteralInteger(int)) => Ok(Expr::Integer(int)),
         _ => Err(Error::UnexpectedExpressionToken),
@@ -178,7 +309,21 @@ fn extract_type_or_module_name<'a>(stream_token: &Option<Token<'a>>) -> Result<&
 fn extract_var_name<'a>(stream_token: &Option<Token<'a>>) -> Result<&'a str, Error<'a>> {
     match stream_token {
         Some(Token::VarName(name)) => Ok(name),
-        Some(token) => Err(Error::ExpectedSpace(token.clone())),
+        Some(token) => Err(Error::UnexpectedToken {
+            found: token.clone(),
+            expected: Token::VarName(""),
+        }),
+        None => Err(Error::UnexpectedEnd),
+    }
+}
+
+fn extract_operator<'a>(stream_token: &Option<Token<'a>>) -> Result<&'a str, Error<'a>> {
+    match stream_token {
+        Some(Token::Operator(op)) => Ok(op),
+        Some(token) => Err(Error::UnexpectedToken {
+            found: token.clone(),
+            expected: Token::Operator(""),
+        }),
         None => Err(Error::UnexpectedEnd),
     }
 }

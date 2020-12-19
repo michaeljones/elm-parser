@@ -37,6 +37,8 @@ fn dump_file(filename: &str, _quiet: bool) -> Result<(), Error> {
         Error::ParserError
     })?;
 
+    println!("{:#?}", &module);
+
     evaluate::evaluate(&module).map_err(|err| {
         println!("{:?}", &err);
         Error::EvaluateError
